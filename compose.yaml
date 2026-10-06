@@ -1,0 +1,46 @@
+name: rxtrail
+
+x-chain: &chain
+  build: docker/chain
+  image: rxtrail-chain
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+
+services:
+  # Toolchain for one-off commands: `docker compose run --rm chain anchor build`.
+  chain:
+    <<: *chain
+    volumes:
+      - .:/work
+      # Caches survive between runs: crates, Rust toolchains, SBF platform tools.
+      - cargo-registry:/home/builder/.cargo/registry
+      - rustup:/home/builder/.rustup
+      - solana-cache:/home/builder/.cache/solana
+    profiles: ["tools"]
+
+  # Private single-node cluster.
+  localnet:
+    <<: *chain
+    entrypoint: ["localnet-entrypoint"]
+    ports:
+      - "${LOCALNET_RPC_PORT}:8899"
+      - "${LOCALNET_WS_PORT}:8900"
+    volumes:
+      - localnet-ledger:/home/builder/ledger
+    environment:
+      LOCALNET_LEDGER_SHREDS: ${LOCALNET_LEDGER_SHREDS:-2000000}
+    security_opt:
+      # Agave 4.x requires io_uring, which Docker's default seccomp profile
+      # blocks. Lifted for this local-only, non-root container.
+      - seccomp=unconfined
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\"}' \"http://$$(hostname -i | awk '{print $$1}'):8899\" | grep -q ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    profiles: ["localnet"]
+
+volumes:
+  cargo-registry:
+  rustup:
+  solana-cache:
+  localnet-ledger:

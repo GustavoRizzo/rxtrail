@@ -1,0 +1,20 @@
+# Claude Code workspace: notes and instructions, kept local (not versioned).
+.claude/
+
+# Secrets and keys
+.env
+.keys/
+*-keypair.json
+
+# Rust / Anchor
+target/
+.anchor/
+test-ledger/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Node (Anchor tooling)
+node_modules/
