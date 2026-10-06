@@ -1,0 +1,1017 @@
+{
+  "address": "Hv1GvjSSoF4naRh7wduFJ8x4dJi3E9W3VJ2u544uLrYC",
+  "metadata": {
+    "name": "rxtrail",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "dispense",
+      "discriminator": [
+        59,
+        84,
+        7,
+        23,
+        164,
+        226,
+        137,
+        152
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "dispenser_signer",
+          "signer": true
+        },
+        {
+          "name": "dispenser",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  101,
+                  110,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "dispenser_signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription.id",
+                "account": "Prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescriber",
+          "docs": [
+            "The prescription's prescriber must still be active: a suspended",
+            "prescriber's prescriptions stop being dispensable."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription.prescriber",
+                "account": "Prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dispensation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  101,
+                  110,
+                  115,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription"
+              },
+              {
+                "kind": "account",
+                "path": "prescription.dispensation_count",
+                "account": "Prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "quantity",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "professional_authority",
+          "type": "pubkey"
+        },
+        {
+          "name": "health_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "issue_prescription",
+      "discriminator": [
+        160,
+        93,
+        87,
+        188,
+        30,
+        1,
+        222,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "prescriber_signer",
+          "signer": true
+        },
+        {
+          "name": "prescriber",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescriber_signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "patient_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "document_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "quantity",
+          "type": "u32"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "register_dispenser",
+      "discriminator": [
+        8,
+        26,
+        178,
+        3,
+        252,
+        253,
+        164,
+        35
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "health_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "dispenser",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  101,
+                  110,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "dispenser_key"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "dispenser_key",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "register_prescriber",
+      "discriminator": [
+        167,
+        255,
+        212,
+        142,
+        40,
+        194,
+        196,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "professional_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescriber",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "prescriber_key"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "prescriber_key",
+          "type": "pubkey"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "Dispensation",
+      "discriminator": [
+        133,
+        51,
+        1,
+        76,
+        245,
+        208,
+        132,
+        50
+      ]
+    },
+    {
+      "name": "Dispenser",
+      "discriminator": [
+        244,
+        114,
+        236,
+        162,
+        65,
+        5,
+        126,
+        85
+      ]
+    },
+    {
+      "name": "Prescriber",
+      "discriminator": [
+        55,
+        62,
+        7,
+        153,
+        42,
+        87,
+        11,
+        209
+      ]
+    },
+    {
+      "name": "Prescription",
+      "discriminator": [
+        43,
+        110,
+        88,
+        57,
+        223,
+        111,
+        195,
+        251
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "DispenserRegistered",
+      "discriminator": [
+        215,
+        238,
+        249,
+        63,
+        53,
+        51,
+        236,
+        236
+      ]
+    },
+    {
+      "name": "MedicationDispensed",
+      "discriminator": [
+        19,
+        148,
+        146,
+        145,
+        140,
+        3,
+        133,
+        207
+      ]
+    },
+    {
+      "name": "PrescriberRegistered",
+      "discriminator": [
+        25,
+        128,
+        120,
+        190,
+        218,
+        25,
+        181,
+        122
+      ]
+    },
+    {
+      "name": "PrescriptionIssued",
+      "discriminator": [
+        51,
+        5,
+        219,
+        95,
+        108,
+        49,
+        116,
+        117
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotProfessionalAuthority",
+      "msg": "Signer is not the professional authority"
+    },
+    {
+      "code": 6001,
+      "name": "NotHealthAuthority",
+      "msg": "Signer is not the health authority"
+    },
+    {
+      "code": 6002,
+      "name": "PrescriberNotActive",
+      "msg": "Prescriber is not active"
+    },
+    {
+      "code": 6003,
+      "name": "DispenserNotActive",
+      "msg": "Dispenser is not active"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidQuantity",
+      "msg": "Quantity must be greater than zero"
+    },
+    {
+      "code": 6005,
+      "name": "ExpiryInThePast",
+      "msg": "Expiry must be in the future"
+    },
+    {
+      "code": 6006,
+      "name": "PrescriptionExpired",
+      "msg": "Prescription has expired"
+    },
+    {
+      "code": 6007,
+      "name": "PrescriptionNotActive",
+      "msg": "Prescription is not active"
+    },
+    {
+      "code": 6008,
+      "name": "QuantityExceedsRemaining",
+      "msg": "Quantity exceeds what remains on the prescription"
+    },
+    {
+      "code": 6009,
+      "name": "PrescriptionMismatch",
+      "msg": "Account does not match the prescription"
+    }
+  ],
+  "types": [
+    {
+      "name": "Config",
+      "docs": [
+        "Who may enable participants. Set once, at initialization."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "professional_authority",
+            "docs": [
+              "Enables prescribers (e.g. a medical council)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "health_authority",
+            "docs": [
+              "Enables dispensers (e.g. a health regulator)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Dispensation",
+      "docs": [
+        "One dispensation event. Created once; no instruction ever modifies it."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prescription",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "docs": [
+              "Position in the prescription's history: 0, 1, 2, ..."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "dispenser",
+            "docs": [
+              "Key of the dispenser who signed it."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "quantity",
+            "type": "u32"
+          },
+          {
+            "name": "remaining_after",
+            "docs": [
+              "Remaining quantity right after this dispensation."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "dispensed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Dispenser",
+      "docs": [
+        "A dispenser (pharmacy) enabled by the health authority."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "key",
+            "docs": [
+              "The dispenser's own key: the one that must sign its dispensations."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ParticipantStatus"
+              }
+            }
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DispenserRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "dispenser",
+            "type": "pubkey"
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MedicationDispensed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prescription",
+            "type": "pubkey"
+          },
+          {
+            "name": "dispensation",
+            "type": "pubkey"
+          },
+          {
+            "name": "dispenser",
+            "type": "pubkey"
+          },
+          {
+            "name": "quantity",
+            "type": "u32"
+          },
+          {
+            "name": "remaining_after",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ParticipantStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Suspended"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Prescriber",
+      "docs": [
+        "A prescriber enabled by the professional authority."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "key",
+            "docs": [
+              "The prescriber's own key: the one that must sign their prescriptions."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ParticipantStatus"
+              }
+            }
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrescriberRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prescriber",
+            "type": "pubkey"
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Prescription",
+      "docs": [
+        "A prescription for a controlled medication.",
+        "",
+        "Created once and never rewritten: only the counters move, and only through",
+        "`dispense`. Each dispensation is its own immutable account."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "docs": [
+              "Random id; also the PDA seed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "prescriber",
+            "docs": [
+              "Key of the prescriber who signed it."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "patient_id",
+            "docs": [
+              "Random patient id. Never derived from a real-world document."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "document_hash",
+            "docs": [
+              "Salted hash of the full off-chain prescription document: proves the",
+              "document was not altered after issuance, without revealing it."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "quantity_granted",
+            "type": "u32"
+          },
+          {
+            "name": "quantity_dispensed",
+            "type": "u32"
+          },
+          {
+            "name": "dispensation_count",
+            "docs": [
+              "Number of dispensations so far; also the seed of the next one."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "issued_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "PrescriptionStatus"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrescriptionIssued",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prescription",
+            "type": "pubkey"
+          },
+          {
+            "name": "prescriber",
+            "type": "pubkey"
+          },
+          {
+            "name": "quantity_granted",
+            "type": "u32"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrescriptionStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          }
+        ]
+      }
+    }
+  ]
+}

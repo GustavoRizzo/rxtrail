@@ -1,23 +1,63 @@
 name: rxtrail
 
+x-app: &app
+  build: app
+  image: rxtrail-app
+  env_file: .env
+  user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  volumes:
+    - ./app:/app
+    - ./.keys:/keys
+  depends_on:
+    db:
+      condition: service_healthy
+
 x-chain: &chain
-  build: docker/chain
+  build: program
   image: rxtrail-chain
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
 services:
-  # Toolchain for one-off commands: `docker compose run --rm chain anchor build`.
+  # Off-chain store: personal data and prescription documents never go on-chain.
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TRANSACTIONAL_DB_USER: ${TRANSACTIONAL_DB_USER}
+      TRANSACTIONAL_DB_PASSWORD: ${TRANSACTIONAL_DB_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      # Postgres 18 wants the volume at /var/lib/postgresql, not .../data.
+      - pgdata:/var/lib/postgresql
+      - ./app/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Python/Django app: domain, Solana client, web.
+  web:
+    <<: *app
+    ports:
+      - "${WEB_PORT}:8000"
+
+  # Rust/Anchor toolchain for one-off commands: `just chain anchor --version`.
   chain:
     <<: *chain
     volumes:
-      - .:/work
+      - ./program:/work
+      - ./.keys:/keys
       # Caches survive between runs: crates, Rust toolchains, SBF platform tools.
       - cargo-registry:/home/builder/.cargo/registry
       - rustup:/home/builder/.rustup
       - solana-cache:/home/builder/.cache/solana
     profiles: ["tools"]
 
-  # Private single-node cluster.
+  # Private single-node Solana cluster.
   localnet:
     <<: *chain
     entrypoint: ["localnet-entrypoint"]
@@ -40,6 +80,7 @@ services:
     profiles: ["localnet"]
 
 volumes:
+  pgdata:
   cargo-registry:
   rustup:
   solana-cache:

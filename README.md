@@ -16,8 +16,8 @@ Every event stays on-chain as its own immutable record, so a regulator or
 auditor can verify the full history without trusting anyone.
 
 > Status: early build for the Colosseum hackathon (October 2026). The
-> on-chain program (milestone 1) is implemented and tested; the client, the
-> devnet deployment and the demo app are in progress.
+> on-chain program and the Python application run end to end on a local
+> validator; the devnet deployment and the web demo are in progress.
 
 ## How it works
 
@@ -49,22 +49,73 @@ auditor can verify the full history without trusting anyone.
 | `Prescription` | `["prescription", id]` | counters only, via `dispense` |
 | `Dispensation` | `["dispensation", prescription, index]` | never |
 
+## Repository layout
+
+```
+program/   on-chain: the Anchor program (Rust) and its tests
+app/       off-chain: the Python/Django application and its tests
+```
+
+### The app (`app/`)
+
+| Package | Role |
+|---|---|
+| `rxtrail/` | the domain in plain Python: entities, the prescription rules, use cases, and the ports it needs |
+| `solana_client/` | adapter to the on-chain program: builds and signs transactions from the program's IDL, follows confirmations over WebSocket, maps program errors to domain errors |
+| `records/` | adapter to the off-chain store (Postgres): patients, the link to their random on-chain id, prescription documents and salts |
+| `web/` | entry points: the `rxtrail` command today, web pages next |
+| `config/` | Django settings and the composition root wiring ports to adapters |
+
+The rules live twice, on purpose. The on-chain program enforces them and is
+the authority; `rxtrail/rules.py` mirrors them so the app can explain a
+refusal before sending a doomed transaction. Tests pin both.
+
+What goes where:
+
+| On-chain (public) | Off-chain (private) |
+|---|---|
+| random prescription and patient ids | patient name and document number |
+| quantity granted, dispensed, expiry | the full prescription document |
+| salted hash of the document | the salt |
+| every dispensation, signed | |
+
 ## Development
 
 Everything runs in Docker; [just](https://just.systems) wraps the commands.
 
 ```bash
-cp .env.example .env
-just toolchain       # build the image: Rust, Agave 4.3, Anchor 1.2
-just build           # compile the program and its IDL
-just test-program    # program tests on LiteSVM (in-process Solana VM)
-just lint-program    # rustfmt + clippy
-just localnet        # local single-node validator
+just bootstrap        # .env, images, database, migrations
+just build            # compile the program; copy its IDL to the app
+just localnet         # start a local single-node validator
+just deploy-localnet  # deploy the program to it
+just test             # program tests (LiteSVM) + app tests (Postgres, localnet)
 ```
 
-The program tests run the compiled bytecode and cover the guarantees above:
-never dispensing past the grant (including two dispensers racing), expiry,
-and that only enabled participants — and never the operator — can act.
+Try it end to end on the local validator:
+
+```bash
+just manage rxtrail setup                       # keys, operator funds, initialize
+just manage rxtrail enable-prescriber dr-ana    # the professional authority signs
+just manage rxtrail enable-dispenser pharmacy-one
+just manage rxtrail issue dr-ana --patient-document 123 --patient-name "Maria Silva" \
+    --medication "Clonazepam 2mg" --quantity 30 --days 30
+just manage rxtrail dispense pharmacy-one <prescription id> 20
+just manage rxtrail dispense pharmacy-one <prescription id> 15   # refused: 10 remain
+just manage rxtrail audit <prescription id>
+```
+
+Tests:
+
+| Suite | Runs against | Covers |
+|---|---|---|
+| `program/programs/rxtrail/tests` | the compiled program on LiteSVM | every on-chain guarantee |
+| `app/tests/unit` | in-memory fakes | rules mirror, document hashing, IDL codec, use cases |
+| `app/tests/integration` | Postgres | off-chain store, database permissions |
+| `app/tests/localnet` | the deployed program on a local validator | the full flow; refusals come from the chain itself |
+
+Python is installed and managed by [uv](https://docs.astral.sh/uv/)
+(version in `app/.python-version`); Rust, Agave and Anchor live in the
+`program/` image. Nothing but Docker and `just` is needed on the host.
 
 ## Roadmap
 

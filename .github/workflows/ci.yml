@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  program:
+    name: On-chain program (Rust / Anchor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: extractions/setup-just@v3
+      - name: Configure
+        run: |
+          cp .env.example .env
+          sed -i "s/^HOST_UID=.*/HOST_UID=$(id -u)/; s/^HOST_GID=.*/HOST_GID=$(id -g)/" .env
+          mkdir -p .keys program/target/deploy
+      - name: Throwaway program id
+        # The real program keypair is never committed. CI makes a throwaway
+        # one and points declare_id!/Anchor.toml at it, in CI's checkout only.
+        run: just chain sh -c "solana-keygen new --no-bip39-passphrase --silent -o target/deploy/rxtrail-keypair.json && anchor keys sync"
+      - name: Build, lint and test (LiteSVM)
+        run: |
+          just build
+          just lint-program
+          just test-program
+
+  app:
+    name: App (Python / Django) against a local validator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: extractions/setup-just@v3
+      - uses: astral-sh/setup-uv@v7
+      - name: Configure
+        run: |
+          cp .env.example .env
+          sed -i "s/^HOST_UID=.*/HOST_UID=$(id -u)/; s/^HOST_GID=.*/HOST_GID=$(id -g)/" .env
+          mkdir -p .keys program/target/deploy
+      - name: Lint
+        run: just lint-app
+      - name: Throwaway program id
+        run: just chain sh -c "solana-keygen new --no-bip39-passphrase --silent -o target/deploy/rxtrail-keypair.json && anchor keys sync"
+      - name: Start database, app and local validator
+        run: |
+          docker compose up -d --build --wait db web
+          just localnet
+      - name: Build and deploy the program to the local validator
+        run: |
+          just build
+          just deploy-localnet
+      - name: Test
+        run: |
+          just migrate
+          just test-app -v
+      - name: Logs on failure
+        if: failure()
+        run: docker compose --profile localnet logs

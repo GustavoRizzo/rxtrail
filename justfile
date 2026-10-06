@@ -6,21 +6,27 @@ set dotenv-required := false
 _default:
     @just --list --unsorted
 
-# --- Program (Rust / Anchor) ---------------------------------------------
+# --- Setup ------------------------------------------------------------------
 
-# Build the toolchain image (Rust, Agave, Anchor).
-toolchain:
-    docker compose --profile tools build chain
+# First run: .env, images, database, migrations.
+bootstrap:
+    @test -f .env || cp .env.example .env
+    docker compose --profile tools build
+    docker compose up -d --wait db web
+    @just migrate
+
+# --- On-chain program (program/: Rust, Anchor) ------------------------------
 
 # Run any command in the toolchain container: `just chain anchor --version`.
 chain *ARGS:
     docker compose --profile tools run --rm chain {{ARGS}}
 
-# Compile the on-chain program and its IDL.
+# Compile the program; copy its IDL (the program's interface) to the app.
 build:
     docker compose --profile tools run --rm chain anchor build
+    cp program/target/idl/rxtrail.json app/solana_client/rxtrail_idl.json
 
-# Program tests (LiteSVM: in-process Solana VM, no validator needed).
+# Program tests on LiteSVM (in-process Solana VM, no validator needed).
 test-program: build
     docker compose --profile tools run --rm chain cargo test --workspace
 
@@ -31,6 +37,15 @@ fmt-program:
 # Check formatting and lint the Rust code.
 lint-program:
     docker compose --profile tools run --rm chain sh -c "cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings"
+
+# Deploy the compiled program to the local validator (start it first).
+deploy-localnet:
+    docker compose --profile tools run --rm chain sh -c '\
+        test -f /keys/deployer.json || solana-keygen new --no-bip39-passphrase --silent -o /keys/deployer.json; \
+        solana airdrop 10 --url http://localnet:8899 --keypair /keys/deployer.json >/dev/null; \
+        solana program deploy target/deploy/rxtrail.so \
+            --program-id target/deploy/rxtrail-keypair.json \
+            --keypair /keys/deployer.json --url http://localnet:8899'
 
 # --- Localnet ---------------------------------------------------------------
 
@@ -48,3 +63,54 @@ localnet-reset:
     docker compose --profile localnet rm -sf localnet
     docker volume rm -f rxtrail_localnet-ledger
     @just localnet
+
+# --- App (app/: Python, Django) -----------------------------------------------
+
+# Start the database and the web app.
+up:
+    docker compose up -d --wait db web
+
+# Stop everything, keeping data.
+down:
+    docker compose --profile localnet --profile tools down
+
+# Run any manage.py command: `just manage rxtrail status`.
+manage *ARGS:
+    docker compose exec web python manage.py {{ARGS}}
+
+# Apply database migrations.
+migrate:
+    docker compose exec web python manage.py migrate
+
+# Generate migrations for the off-chain records.
+migrations:
+    docker compose exec web python manage.py makemigrations records
+
+# App tests in the container (test database; localnet tests need a deployed program).
+test-app *ARGS:
+    docker compose exec -e POSTGRES_DB="${POSTGRES_DB}_test" web pytest {{ARGS}}
+
+# Format and lint the Python code.
+lint-app:
+    cd app && uv run ruff format --check . && uv run ruff check .
+
+# Format the Python code in place.
+fmt-app:
+    cd app && uv run ruff format . && uv run ruff check --fix .
+
+# Every test: program (LiteSVM) and app.
+test: test-program test-app
+
+# --- Database -----------------------------------------------------------------
+
+# (Re)create the store's schema and user (idempotent).
+db-init:
+    docker compose exec db /docker-entrypoint-initdb.d/10-stores.sh
+
+# Open psql as the superuser.
+psql:
+    docker compose exec db psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}"
+
+# Delete every volume: database, local chain, caches.
+nuke:
+    docker compose --profile localnet --profile tools down -v

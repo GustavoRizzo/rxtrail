@@ -1,0 +1,35 @@
+[project]
+name = "rxtrail"
+version = "0.1.0"
+description = "Tamper-proof dispensing limits for controlled prescriptions, on Solana."
+requires-python = ">=3.14"
+dependencies = [
+    "django>=6.1.1",
+    "psycopg[binary]>=3.3.5",
+    "solana>=0.40.3",
+    "solders>=0.29.0",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.16.9", "pytest>=9.1.1", "pytest-asyncio>=1.4.0", "pytest-django>=4.14.0"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+# Django's Meta and ModelAdmin idioms are class-level lists by design.
+"records/**" = ["RUF012"]
+"web/**" = ["RUF012"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+DJANGO_SETTINGS_MODULE = "config.settings"
+# The test database is pre-created by docker/postgres/init (the app user may
+# not create databases), so it is reused rather than created per run.
+addopts = "--reuse-db"
+
+[tool.uv]
+# Python itself is installed and managed by uv, never taken from the system.
+python-preference = "only-managed"
