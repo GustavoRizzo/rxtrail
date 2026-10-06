@@ -95,6 +95,10 @@ down:
 manage *ARGS:
     docker compose exec web python manage.py {{ARGS}}
 
+# The `rxtrail` command on a network: `just rx devnet issue dr-ana ...`.
+rx network *ARGS:
+    docker compose exec -e SOLANA_NETWORK={{network}} web python manage.py rxtrail {{ARGS}}
+
 # Apply database migrations.
 migrate:
     docker compose exec web python manage.py migrate

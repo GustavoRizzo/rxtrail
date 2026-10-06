@@ -11,6 +11,10 @@ from rxtrail.domain import PrescriptionDocument, RxTrailError
 
 AUTHORITIES = ("professional-authority", "health-authority")
 
+# Enough for setup plus a demo: each record's rent deposit is ~0.001-0.0015 SOL
+# and each transaction fee 0.000005 SOL.
+MIN_OPERATOR_LAMPORTS = 50_000_000  # 0.05 SOL
+
 
 class Command(BaseCommand):
     help = "RxTrail operations against the configured Solana network."
@@ -60,11 +64,12 @@ class Command(BaseCommand):
         for name in (settings.SOLANA_OPERATOR, *AUTHORITIES):
             self._key(name)
         async with container.open_rxtrail() as (_app, chain):
-            if await chain.operator_balance() < 1_000_000_000:
+            if await chain.operator_balance() < MIN_OPERATOR_LAMPORTS:
                 if settings.SOLANA_NETWORK != "localnet":
                     raise CommandError(
                         f"fund the operator {chain.address_of(settings.SOLANA_OPERATOR)} "
-                        "(devnet: https://faucet.solana.com), then run setup again"
+                        "with at least 0.05 SOL (devnet: https://faucet.solana.com), "
+                        "then run setup again"
                     )
                 await chain.airdrop_to_operator(10_000_000_000)
                 self.stdout.write("  operator funded from the local faucet")
