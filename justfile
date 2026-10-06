@@ -47,6 +47,23 @@ deploy-localnet:
             --program-id target/deploy/rxtrail-keypair.json \
             --keypair /keys/deployer.json --url http://localnet:8899'
 
+# Addresses and devnet balances of the deployer and the operator.
+devnet-status:
+    @docker compose --profile tools run --rm chain sh -c '\
+        for k in deployer operator; do \
+            echo "$k $(solana-keygen pubkey /keys/$k.json) $(solana balance /keys/$k.json --url https://api.devnet.solana.com)"; \
+        done; \
+        echo "program $(solana-keygen pubkey target/deploy/rxtrail-keypair.json)"; \
+        solana program show $(solana-keygen pubkey target/deploy/rxtrail-keypair.json) \
+            --keypair /keys/deployer.json --url https://api.devnet.solana.com 2>&1 | head -3'
+
+# Deploy the compiled program to devnet. The deployer needs ~2.1 SOL during
+# the deploy (program account + a temporary buffer, refunded after).
+deploy-devnet:
+    docker compose --profile tools run --rm chain solana program deploy target/deploy/rxtrail.so \
+        --program-id target/deploy/rxtrail-keypair.json \
+        --keypair /keys/deployer.json --url https://api.devnet.solana.com
+
 # --- Localnet ---------------------------------------------------------------
 
 # Start the local validator and wait until it answers.

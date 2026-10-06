@@ -3,6 +3,12 @@
 Every write is a transaction paid by the operator and signed by the named
 participant it is attributed to: the program refuses it otherwise. Reads
 decode accounts at addresses anyone can derive (see pdas.py).
+
+The program is the source of truth. Every write ends in exactly one of:
+a Receipt (the chain accepted it), a domain error the program explained
+(PROGRAM_ERRORS), TransactionRejectedError (refused, reason not modelled),
+OutcomeUnknownError (sent, landing not confirmed) or LedgerUnavailableError
+(node unreachable). Nothing from the chain escapes as a library exception.
 """
 
 import asyncio
@@ -26,14 +32,16 @@ from solders.transaction import Transaction
 from rxtrail.domain import (
     PROGRAM_ERRORS,
     Dispensation,
+    LedgerUnavailableError,
     NotRegisteredError,
+    OutcomeUnknownError,
     Prescription,
     PrescriptionStatus,
     Receipt,
     TransactionRejectedError,
 )
 from solana_client import pdas
-from solana_client.confirmations import Confirmations
+from solana_client.confirmations import ConfirmationError, Confirmations
 from solana_client.idl import Idl
 from solana_client.keystore import FileKeyStore
 
@@ -267,7 +275,10 @@ class SolanaLedger:
         )
         signature = str(transaction.signatures[0])
         # Subscribe before sending: the confirmation cannot slip past us.
-        confirmed = await self._confirmations.expect(signature)
+        try:
+            confirmed = await self._confirmations.expect(signature)
+        except ConfirmationError as exc:
+            raise LedgerUnavailableError(f"cannot follow confirmations: {exc}") from exc
         try:
             await self._call(
                 self._client.send_raw_transaction,
@@ -275,7 +286,11 @@ class SolanaLedger:
                 TxOpts(preflight_commitment=Confirmed),
             )
         except RPCException as exc:
+            # Preflight: the node simulated it and the program said no.
             raise self._translate(exc) from exc
+        except LedgerUnavailableError as exc:
+            # It may or may not have reached the node before the failure.
+            raise OutcomeUnknownError(signature, str(exc)) from exc
         await self._wait(signature, confirmed)
         return Receipt(signature=signature, address=str(address))
 
@@ -283,9 +298,12 @@ class SolanaLedger:
         try:
             error = await asyncio.wait_for(confirmed, CONFIRM_TIMEOUT_SECONDS)
         except TimeoutError:
-            raise TransactionRejectedError(f"{signature} did not confirm in time") from None
+            raise OutcomeUnknownError(signature, "not confirmed in time") from None
+        except ConfirmationError as exc:
+            raise OutcomeUnknownError(signature, str(exc)) from exc
         if error is not None:
-            raise TransactionRejectedError(f"{signature} failed: {error}")
+            # Landed in a block but failed while executing: the program refused.
+            raise TransactionRejectedError(f"{signature} failed on-chain: {error}")
 
     def _translate(self, exc: RPCException) -> Exception:
         """A preflight refusal, as a domain error when the program said why."""
@@ -313,7 +331,9 @@ class SolanaLedger:
                 return await method(*args)
             except SolanaRpcException as exc:
                 if attempt == self._max_retries:
-                    raise
+                    raise LedgerUnavailableError(
+                        f"Solana node unavailable after {self._max_retries} retries: {exc}"
+                    ) from exc
                 logger.warning("RPC %s failed (%s); retrying in %.1fs", method.__name__, exc, delay)
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 8)

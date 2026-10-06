@@ -123,3 +123,17 @@ async def test_the_audit_catches_a_missing_dispensation(app, ledger):
     trail = await app.audit(issued.prescription_id)
 
     assert any("1 dispensations recorded, 0 found" in p for p in trail.problems)
+
+
+async def test_a_chain_refusal_the_rules_did_not_foresee_is_still_an_error(app, ledger):
+    from rxtrail.domain import TransactionRejectedError
+
+    issued = await issue(app)
+
+    async def refuses(*args):
+        raise TransactionRejectedError("custom program error: 0x7d6")
+
+    ledger.dispense = refuses  # the local check passes; the program says no
+
+    with pytest.raises(TransactionRejectedError):
+        await app.dispense("pharmacy-one", issued.prescription_id, 1)

@@ -79,3 +79,20 @@ async def test_the_operator_cannot_issue_in_a_prescribers_name(ledger):
 async def test_only_the_health_authority_enables_dispensers(ledger, fresh):
     with pytest.raises(NotHealthAuthorityError):
         await ledger.register_dispenser("professional-authority", fresh("pharmacy"))
+
+
+async def test_a_refusal_the_app_does_not_model_is_still_an_error(ledger, enabled):
+    from rxtrail.domain import TransactionRejectedError
+
+    prescriber, _ = enabled
+    prescription_id = new_id()
+    expires = datetime.now(UTC) + timedelta(days=1)
+    await ledger.issue_prescription(prescriber, prescription_id, new_id(), new_id(), 10, expires)
+
+    # Same id again: no Python rule checks this; only the program knows the
+    # prescription account already exists, and it refuses.
+    with pytest.raises(TransactionRejectedError):
+        await ledger.issue_prescription(
+            prescriber, prescription_id, new_id(), new_id(), 99, expires
+        )
+    assert (await ledger.prescription(prescription_id)).quantity_granted == 10

@@ -1,6 +1,8 @@
 """The prescription rules, mirrored from the on-chain program.
 
-THE PROGRAM IS THE AUTHORITY. These checks are a copy of the ones in
+THE PROGRAM IS THE AUTHORITY. Passing these checks proves nothing: it only
+means the transaction is worth sending. Whatever the program then decides is
+final, and a refusal is an error even when these checks did not foresee it. These checks are a copy of the ones in
 program/programs/rxtrail/src/instructions/ (issue_prescription.rs and
 dispense.rs). They run before a transaction is built, so users get a clear
 message instead of a failed transaction. If a rule changes in Rust, change it

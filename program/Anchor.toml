@@ -9,6 +9,9 @@ skip-lint = false
 [programs.localnet]
 rxtrail = "Hv1GvjSSoF4naRh7wduFJ8x4dJi3E9W3VJ2u544uLrYC"
 
+[programs.devnet]
+rxtrail = "Hv1GvjSSoF4naRh7wduFJ8x4dJi3E9W3VJ2u544uLrYC"
+
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"

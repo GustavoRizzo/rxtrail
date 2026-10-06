@@ -146,7 +146,26 @@ class NotRegisteredError(RxTrailError):
 
 
 class TransactionRejectedError(RxTrailError):
-    """The network refused the transaction for a reason not mapped above."""
+    """The chain refused the transaction, for a reason the app does not model.
+
+    The program is the source of truth: any refusal it gives is an error here,
+    even one the Python mirror did not foresee. The chain's own message is kept.
+    """
+
+
+class OutcomeUnknownError(RxTrailError):
+    """The transaction was sent, but whether it landed could not be confirmed.
+
+    Never treated as success: look the signature up on an explorer.
+    """
+
+    def __init__(self, signature: str, reason: str):
+        super().__init__(f"{signature} was sent, outcome unknown: {reason}")
+        self.signature = signature
+
+
+class LedgerUnavailableError(RxTrailError):
+    """The Solana node could not be reached, even after retries."""
 
 
 PROGRAM_ERRORS: dict[str, type[RxTrailError]] = {

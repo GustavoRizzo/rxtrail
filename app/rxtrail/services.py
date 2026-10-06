@@ -82,7 +82,11 @@ class RxTrail:
     # -- dispenser -------------------------------------------------------------
 
     async def dispense(self, dispenser: str, prescription_id: bytes, quantity: int) -> Receipt:
-        """Check the rules locally for a clear message; the program enforces them."""
+        """Check the rules locally for a clear message; the program decides.
+
+        The local check is a double check only. If it passes and the program
+        refuses, the program's refusal is raised as is.
+        """
         prescription = await self._ledger.prescription(prescription_id)
         if prescription is None:
             raise NotFoundError(f"no prescription {prescription_id.hex()}")
