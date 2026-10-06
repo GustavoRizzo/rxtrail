@@ -8,6 +8,7 @@ from rxtrail import documents, rules
 from rxtrail.domain import (
     AuditTrail,
     NotFoundError,
+    ParticipantStatus,
     PrescriptionDocument,
     Receipt,
     new_id,
@@ -49,6 +50,28 @@ class RxTrail:
 
     async def enable_dispenser(self, authority: str, dispenser: str) -> Receipt:
         return await self._ledger.register_dispenser(authority, dispenser)
+
+    async def suspend_prescriber(self, authority: str, prescriber: str) -> Receipt:
+        """Stop a prescriber at once: no new prescriptions, and none of theirs
+        can be dispensed. The answer to a leaked key or a revoked licence."""
+        return await self._ledger.set_prescriber_status(
+            authority, prescriber, ParticipantStatus.SUSPENDED
+        )
+
+    async def reinstate_prescriber(self, authority: str, prescriber: str) -> Receipt:
+        return await self._ledger.set_prescriber_status(
+            authority, prescriber, ParticipantStatus.ACTIVE
+        )
+
+    async def suspend_dispenser(self, authority: str, dispenser: str) -> Receipt:
+        return await self._ledger.set_dispenser_status(
+            authority, dispenser, ParticipantStatus.SUSPENDED
+        )
+
+    async def reinstate_dispenser(self, authority: str, dispenser: str) -> Receipt:
+        return await self._ledger.set_dispenser_status(
+            authority, dispenser, ParticipantStatus.ACTIVE
+        )
 
     # -- prescriber ----------------------------------------------------------
 

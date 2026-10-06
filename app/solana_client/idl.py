@@ -72,6 +72,11 @@ class Idl:
             if inner != "u8" or len(value) != size:
                 raise ValueError(f"expected {size} bytes")
             return bytes(value)
+        if isinstance(kind, dict) and "defined" in kind:
+            definition = self._types[kind["defined"]["name"]]
+            if definition["kind"] == "enum":
+                names = [v["name"] for v in definition["variants"]]
+                return bytes([names.index(value)])
         raise NotImplementedError(f"encoding {kind}")
 
     def _decode(self, kind, data: bytes, offset: int) -> tuple[Any, int]:

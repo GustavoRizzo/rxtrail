@@ -10,7 +10,7 @@ use {
     litesvm::LiteSVM,
     rxtrail::{
         error::RxTrailError,
-        state::{Dispensation, ParticipantStatus, Prescription},
+        state::{Dispensation, Dispenser, ParticipantStatus, Prescriber, Prescription},
         CONFIG_SEED, DISPENSATION_SEED, DISPENSER_SEED, PRESCRIBER_SEED, PRESCRIPTION_SEED,
     },
     solana_keypair::Keypair,
@@ -276,6 +276,51 @@ impl Env {
         self.dispense_by(&dispenser, id, quantity)
     }
 
+    fn set_prescriber_status_signed_by(
+        &mut self,
+        key: &Pubkey,
+        status: ParticipantStatus,
+        authority: &Keypair,
+    ) -> Result<(), String> {
+        let ix = Instruction::new_with_bytes(
+            rxtrail::id(),
+            &rxtrail::instruction::SetPrescriberStatus { status }.data(),
+            rxtrail::accounts::SetPrescriberStatus {
+                professional_authority: authority.pubkey(),
+                config: config_pda(),
+                prescriber: prescriber_pda(key),
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, &[authority])
+    }
+
+    fn set_prescriber_status(&mut self, status: ParticipantStatus) -> Result<(), String> {
+        let (key, authority) = (
+            self.prescriber.pubkey(),
+            self.professional_authority.insecure_clone(),
+        );
+        self.set_prescriber_status_signed_by(&key, status, &authority)
+    }
+
+    fn set_dispenser_status(&mut self, status: ParticipantStatus) -> Result<(), String> {
+        let (key, authority) = (
+            self.dispenser.pubkey(),
+            self.health_authority.insecure_clone(),
+        );
+        let ix = Instruction::new_with_bytes(
+            rxtrail::id(),
+            &rxtrail::instruction::SetDispenserStatus { status }.data(),
+            rxtrail::accounts::SetDispenserStatus {
+                health_authority: authority.pubkey(),
+                config: config_pda(),
+                dispenser: dispenser_pda(&key),
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, &[&authority])
+    }
+
     fn prescription(&self, id: &[u8; 32]) -> Prescription {
         let account = self.svm.get_account(&prescription_pda(id)).unwrap();
         Prescription::try_deserialize(&mut account.data.as_slice()).unwrap()
@@ -529,5 +574,161 @@ fn the_operator_pays_every_fee_and_deposit() {
         env.professional_authority.pubkey(),
     ] {
         assert_eq!(env.svm.get_balance(&key).unwrap_or(0), 0);
+    }
+}
+
+// ------------------------------------------- suspension (RN-11a, RN-21) ----
+
+#[test]
+fn a_suspended_prescriber_cannot_issue() {
+    let mut env = Env::new();
+    env.set_prescriber_status(ParticipantStatus::Suspended)
+        .unwrap();
+
+    let prescriber = env.prescriber.insecure_clone();
+    let expires_at = env.now() + DAY;
+    let err = env.issue_by(&prescriber, 30, expires_at).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::PrescriberNotActive)),
+        "{err}"
+    );
+}
+
+#[test]
+fn suspending_a_prescriber_freezes_their_existing_prescriptions() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.dispense(&id, 10).unwrap();
+
+    env.set_prescriber_status(ParticipantStatus::Suspended)
+        .unwrap();
+    let err = env.dispense(&id, 5).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::PrescriberNotActive)),
+        "{err}"
+    );
+    // What was already dispensed stays on record, untouched.
+    assert_eq!(env.prescription(&id).quantity_dispensed, 10);
+    assert_eq!(env.dispensation(&id, 0).quantity, 10);
+}
+
+#[test]
+fn reinstating_a_prescriber_restores_their_prescriptions() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.set_prescriber_status(ParticipantStatus::Suspended)
+        .unwrap();
+    env.set_prescriber_status(ParticipantStatus::Active)
+        .unwrap();
+
+    env.dispense(&id, 5).unwrap();
+
+    let account = env
+        .svm
+        .get_account(&prescriber_pda(&env.prescriber.pubkey()))
+        .unwrap();
+    let record = Prescriber::try_deserialize(&mut account.data.as_slice()).unwrap();
+    assert_eq!(record.status, ParticipantStatus::Active);
+    assert_eq!(record.status_changed_at, env.now());
+}
+
+#[test]
+fn a_suspended_dispenser_cannot_dispense() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.set_dispenser_status(ParticipantStatus::Suspended)
+        .unwrap();
+
+    let err = env.dispense(&id, 1).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::DispenserNotActive)),
+        "{err}"
+    );
+    let account = env
+        .svm
+        .get_account(&dispenser_pda(&env.dispenser.pubkey()))
+        .unwrap();
+    let record = Dispenser::try_deserialize(&mut account.data.as_slice()).unwrap();
+    assert_eq!(record.status, ParticipantStatus::Suspended);
+}
+
+#[test]
+fn only_the_professional_authority_suspends_prescribers() {
+    let mut env = Env::new();
+    let key = env.prescriber.pubkey();
+    let health = env.health_authority.insecure_clone();
+
+    let err = env
+        .set_prescriber_status_signed_by(&key, ParticipantStatus::Suspended, &health)
+        .unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::NotProfessionalAuthority)),
+        "{err}"
+    );
+}
+
+// ----------------------------------------------------------------- limits --
+
+#[test]
+fn the_largest_grant_never_overflows() {
+    let mut env = Env::new();
+    let id = env.issue(u32::MAX);
+
+    env.dispense(&id, u32::MAX - 1).unwrap();
+    env.dispense(&id, 1).unwrap();
+    let err = env.dispense(&id, 1).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::QuantityExceedsRemaining)),
+        "{err}"
+    );
+    assert_eq!(env.prescription(&id).quantity_dispensed, u32::MAX);
+}
+
+// ------------------------------------------------ property: RN-06 always --
+
+use proptest::prelude::*;
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    /// Whatever pharmacies ask for, in whatever order: the program never
+    /// dispenses past the grant, every request that fits is accepted, and the
+    /// on-chain history adds up.
+    #[test]
+    fn dispensing_never_exceeds_the_grant(
+        granted in 1u32..200,
+        requests in proptest::collection::vec((1u32..80, 0usize..3), 1..12),
+    ) {
+        let mut env = Env::new();
+        let pharmacies: Vec<Keypair> = (0..3).map(|_| Keypair::new()).collect();
+        for pharmacy in &pharmacies {
+            env.register_dispenser(&pharmacy.pubkey()).unwrap();
+        }
+        let id = env.issue(granted);
+
+        let mut expected_dispensed = 0u32;
+        for (quantity, who) in requests {
+            let fits = quantity <= granted - expected_dispensed;
+            let result = env.dispense_by(&pharmacies[who], &id, quantity);
+            prop_assert_eq!(result.is_ok(), fits, "asked {} with {} left", quantity, granted - expected_dispensed);
+            if fits {
+                expected_dispensed += quantity;
+            }
+        }
+
+        let p = env.prescription(&id);
+        prop_assert!(p.quantity_dispensed <= p.quantity_granted);
+        prop_assert_eq!(p.quantity_dispensed, expected_dispensed);
+        let mut remaining = granted;
+        for index in 0..p.dispensation_count {
+            let d = env.dispensation(&id, index);
+            remaining -= d.quantity;
+            prop_assert_eq!(d.remaining_after, remaining);
+        }
     }
 }

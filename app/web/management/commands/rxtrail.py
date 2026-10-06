@@ -28,6 +28,11 @@ class Command(BaseCommand):
             enable = sub.add_parser(f"enable-{role}", help=f"The authority enables a {role}.")
             enable.add_argument("name")
 
+        for verb in ("suspend", "reinstate"):
+            for role in ("prescriber", "dispenser"):
+                cmd = sub.add_parser(f"{verb}-{role}", help=f"The authority {verb}s a {role}.")
+                cmd.add_argument("name")
+
         issue = sub.add_parser("issue", help="A prescriber issues a prescription.")
         issue.add_argument("prescriber")
         issue.add_argument("--patient-document", required=True)
@@ -92,6 +97,24 @@ class Command(BaseCommand):
 
     async def _enable_dispenser(self, name, **_):
         await self._enable("dispenser", "health-authority", name)
+
+    async def _change_status(self, verb: str, role: str, name: str):
+        authority = "professional-authority" if role == "prescriber" else "health-authority"
+        async with container.open_rxtrail() as (app, _chain):
+            receipt = await getattr(app, f"{verb}_{role}")(authority, name)
+        self.stdout.write(f"{role} {name} {verb}d ({receipt.signature})")
+
+    async def _suspend_prescriber(self, name, **_):
+        await self._change_status("suspend", "prescriber", name)
+
+    async def _reinstate_prescriber(self, name, **_):
+        await self._change_status("reinstate", "prescriber", name)
+
+    async def _suspend_dispenser(self, name, **_):
+        await self._change_status("suspend", "dispenser", name)
+
+    async def _reinstate_dispenser(self, name, **_):
+        await self._change_status("reinstate", "dispenser", name)
 
     async def _issue(self, prescriber, quantity, days, **o):
         document = PrescriptionDocument(

@@ -31,3 +31,13 @@ pub struct MedicationDispensed {
     pub quantity: u32,
     pub remaining_after: u32,
 }
+
+#[event]
+pub struct ParticipantStatusChanged {
+    /// The participant's own key.
+    pub participant: Pubkey,
+    /// True for a prescriber, false for a dispenser.
+    pub is_prescriber: bool,
+    pub status: crate::state::ParticipantStatus,
+    pub changed_at: i64,
+}

@@ -96,3 +96,48 @@ async def test_a_refusal_the_app_does_not_model_is_still_an_error(ledger, enable
             prescriber, prescription_id, new_id(), new_id(), 99, expires
         )
     assert (await ledger.prescription(prescription_id)).quantity_granted == 10
+
+
+async def test_suspending_a_prescriber_freezes_their_prescriptions(app, ledger, enabled):
+    from rxtrail.domain import PrescriberNotActiveError
+
+    prescriber, dispenser = enabled
+    issued = await app.issue(prescriber, "123", a_document(quantity=30), timedelta(days=30))
+    await app.dispense(dispenser, issued.prescription_id, 10)
+
+    await app.suspend_prescriber("professional-authority", prescriber)
+    with pytest.raises(PrescriberNotActiveError):
+        await ledger.dispense(dispenser, issued.prescription_id, 5)
+
+    await app.reinstate_prescriber("professional-authority", prescriber)
+    await app.dispense(dispenser, issued.prescription_id, 5)
+    assert (await ledger.prescription(issued.prescription_id)).quantity_dispensed == 15
+
+
+async def test_five_pharmacies_racing_never_exceed_the_grant(app, ledger, fresh):
+    """The core promise under real concurrency: 5 pharmacies ask for 10 each,
+    at the same time, against a prescription of 30."""
+    import asyncio
+
+    prescriber = fresh("dr")
+    await ledger.register_prescriber("professional-authority", prescriber)
+    pharmacies = [fresh("pharmacy") for _ in range(5)]
+    for pharmacy in pharmacies:
+        await ledger.register_dispenser("health-authority", pharmacy)
+    issued = await app.issue(prescriber, "123", a_document(quantity=30), timedelta(days=30))
+
+    # Straight to the ledger, all at once: no Python pre-check can serialize them.
+    results = await asyncio.gather(
+        *(ledger.dispense(p, issued.prescription_id, 10) for p in pharmacies),
+        return_exceptions=True,
+    )
+
+    landed = [r for r in results if not isinstance(r, BaseException)]
+    refused = [r for r in results if isinstance(r, BaseException)]
+    assert len(landed) == 3
+    assert len(refused) == 2
+    assert all(isinstance(r, QuantityExceedsRemainingError) for r in refused), refused
+    trail = await app.audit(issued.prescription_id)
+    assert trail.consistent
+    assert trail.prescription.quantity_dispensed == 30
+    assert len(trail.dispensations) == 3

@@ -50,6 +50,14 @@ class FakeLedger:
         self.dispensers.add(dispenser)
         return Receipt(f"sig-reg-{dispenser}", f"dispenser-{dispenser}")
 
+    async def set_prescriber_status(self, authority, prescriber, status):
+        (self.prescribers.add if status == "active" else self.prescribers.discard)(prescriber)
+        return Receipt(f"sig-status-{prescriber}", f"prescriber-{prescriber}")
+
+    async def set_dispenser_status(self, authority, dispenser, status):
+        (self.dispensers.add if status == "active" else self.dispensers.discard)(dispenser)
+        return Receipt(f"sig-status-{dispenser}", f"dispenser-{dispenser}")
+
     async def issue_prescription(
         self, prescriber, prescription_id, patient_id, document_hash, quantity, expires_at
     ):

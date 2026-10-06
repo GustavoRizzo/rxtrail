@@ -20,6 +20,4 @@ pub enum RxTrailError {
     PrescriptionNotActive,
     #[msg("Quantity exceeds what remains on the prescription")]
     QuantityExceedsRemaining,
-    #[msg("Account does not match the prescription")]
-    PrescriptionMismatch,
 }

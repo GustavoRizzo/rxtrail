@@ -35,6 +35,7 @@ from rxtrail.domain import (
     LedgerUnavailableError,
     NotRegisteredError,
     OutcomeUnknownError,
+    ParticipantStatus,
     Prescription,
     PrescriptionStatus,
     Receipt,
@@ -52,6 +53,9 @@ logger = logging.getLogger(__name__)
 ACCOUNT_NOT_INITIALIZED = 3012
 
 CONFIRM_TIMEOUT_SECONDS = 90  # a transaction's blockhash expires in about a minute
+
+# Concurrent pharmacies can collide on the next dispensation slot; see dispense().
+DISPENSE_ATTEMPTS = 5
 
 
 def _timestamp(seconds: int) -> datetime:
@@ -133,6 +137,38 @@ class SolanaLedger:
             address=record,
         )
 
+    async def set_prescriber_status(
+        self, authority: str, prescriber: str, status: ParticipantStatus
+    ) -> Receipt:
+        record = pdas.prescriber(self.program_id, self._keys.keypair(prescriber).pubkey())
+        return await self._send(
+            "set_prescriber_status",
+            {"status": status.value.capitalize()},
+            {
+                "professional_authority": self._keys.keypair(authority).pubkey(),
+                "config": pdas.config(self.program_id),
+                "prescriber": record,
+            },
+            signers=[authority],
+            address=record,
+        )
+
+    async def set_dispenser_status(
+        self, authority: str, dispenser: str, status: ParticipantStatus
+    ) -> Receipt:
+        record = pdas.dispenser(self.program_id, self._keys.keypair(dispenser).pubkey())
+        return await self._send(
+            "set_dispenser_status",
+            {"status": status.value.capitalize()},
+            {
+                "health_authority": self._keys.keypair(authority).pubkey(),
+                "config": pdas.config(self.program_id),
+                "dispenser": record,
+            },
+            signers=[authority],
+            address=record,
+        )
+
     async def issue_prescription(
         self,
         prescriber: str,
@@ -163,6 +199,26 @@ class SolanaLedger:
         )
 
     async def dispense(self, dispenser: str, prescription_id: bytes, quantity: int) -> Receipt:
+        """Record a dispensation; if another pharmacy took the same slot first, retry.
+
+        Each dispensation lives at an address derived from the prescription's
+        counter. Two pharmacies reading the counter at once derive the same
+        address: the chain accepts one and refuses the other ("already in
+        use"). The loser re-reads the counter and tries again, so it either
+        lands in the next slot or meets the real limit (QuantityExceedsRemaining).
+        """
+        for attempt in range(DISPENSE_ATTEMPTS):
+            try:
+                return await self._dispense_once(dispenser, prescription_id, quantity)
+            except TransactionRejectedError as exc:
+                if "already in use" not in str(exc) or attempt == DISPENSE_ATTEMPTS - 1:
+                    raise
+                logger.info("dispensation slot taken by a concurrent pharmacy; retrying")
+        raise AssertionError("unreachable")
+
+    async def _dispense_once(
+        self, dispenser: str, prescription_id: bytes, quantity: int
+    ) -> Receipt:
         current = await self.prescription(prescription_id)
         if current is None:
             raise TransactionRejectedError(f"no prescription {prescription_id.hex()}")

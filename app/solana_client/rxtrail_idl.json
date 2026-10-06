@@ -490,6 +490,159 @@
           "type": "pubkey"
         }
       ]
+    },
+    {
+      "name": "set_dispenser_status",
+      "docs": [
+        "Suspend or reinstate a dispenser (health authority only)."
+      ],
+      "discriminator": [
+        24,
+        10,
+        97,
+        13,
+        230,
+        62,
+        147,
+        23
+      ],
+      "accounts": [
+        {
+          "name": "health_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "dispenser",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  105,
+                  115,
+                  112,
+                  101,
+                  110,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "dispenser"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "ParticipantStatus"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_prescriber_status",
+      "docs": [
+        "Suspend or reinstate a prescriber (professional authority only)."
+      ],
+      "discriminator": [
+        233,
+        81,
+        152,
+        24,
+        243,
+        162,
+        85,
+        88
+      ],
+      "accounts": [
+        {
+          "name": "professional_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescriber",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescriber"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "ParticipantStatus"
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -587,6 +740,19 @@
       ]
     },
     {
+      "name": "ParticipantStatusChanged",
+      "discriminator": [
+        187,
+        210,
+        188,
+        237,
+        23,
+        200,
+        159,
+        228
+      ]
+    },
+    {
       "name": "PrescriberRegistered",
       "discriminator": [
         25,
@@ -658,11 +824,6 @@
       "code": 6008,
       "name": "QuantityExceedsRemaining",
       "msg": "Quantity exceeds what remains on the prescription"
-    },
-    {
-      "code": 6009,
-      "name": "PrescriptionMismatch",
-      "msg": "Account does not match the prescription"
     }
   ],
   "types": [
@@ -771,6 +932,13 @@
             "type": "i64"
           },
           {
+            "name": "status_changed_at",
+            "docs": [
+              "When the status last changed (registration, suspension, reinstatement)."
+            ],
+            "type": "i64"
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -836,6 +1004,40 @@
       }
     },
     {
+      "name": "ParticipantStatusChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "participant",
+            "docs": [
+              "The participant's own key."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "is_prescriber",
+            "docs": [
+              "True for a prescriber, false for a dispenser."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "ParticipantStatus"
+              }
+            }
+          },
+          {
+            "name": "changed_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "Prescriber",
       "docs": [
         "A prescriber enabled by the professional authority."
@@ -860,6 +1062,13 @@
           },
           {
             "name": "registered_at",
+            "type": "i64"
+          },
+          {
+            "name": "status_changed_at",
+            "docs": [
+              "When the status last changed (registration, suspension, reinstatement)."
+            ],
             "type": "i64"
           },
           {

@@ -69,4 +69,20 @@ pub mod rxtrail {
     pub fn dispense(ctx: Context<Dispense>, quantity: u32) -> Result<()> {
         instructions::dispense::handle_dispense(ctx, quantity)
     }
+
+    /// Suspend or reinstate a prescriber (professional authority only).
+    pub fn set_prescriber_status(
+        ctx: Context<SetPrescriberStatus>,
+        status: ParticipantStatus,
+    ) -> Result<()> {
+        instructions::set_status::handle_set_prescriber_status(ctx, status)
+    }
+
+    /// Suspend or reinstate a dispenser (health authority only).
+    pub fn set_dispenser_status(
+        ctx: Context<SetDispenserStatus>,
+        status: ParticipantStatus,
+    ) -> Result<()> {
+        instructions::set_status::handle_set_dispenser_status(ctx, status)
+    }
 }

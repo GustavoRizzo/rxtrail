@@ -41,6 +41,7 @@ pub fn handle_register_prescriber(
         key: prescriber_key,
         status: ParticipantStatus::Active,
         registered_at: now,
+        status_changed_at: now,
         bump: ctx.bumps.prescriber,
     });
     emit!(PrescriberRegistered {

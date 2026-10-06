@@ -137,3 +137,13 @@ async def test_a_chain_refusal_the_rules_did_not_foresee_is_still_an_error(app, 
 
     with pytest.raises(TransactionRejectedError):
         await app.dispense("pharmacy-one", issued.prescription_id, 1)
+
+
+async def test_a_suspended_prescriber_is_refused_by_the_ledger(app, ledger):
+    await app.suspend_prescriber("professional-authority", "dr-ana")
+
+    with pytest.raises(NotRegisteredError):
+        await issue(app)
+
+    await app.reinstate_prescriber("professional-authority", "dr-ana")
+    await issue(app)

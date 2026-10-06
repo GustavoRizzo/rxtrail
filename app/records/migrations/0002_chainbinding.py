@@ -4,20 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('records', '0001_initial'),
+        ("records", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ChainBinding',
+            name="ChainBinding",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('network', models.CharField(max_length=32)),
-                ('genesis_hash', models.CharField(max_length=64)),
-                ('program_id', models.CharField(max_length=64)),
-                ('bound_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("network", models.CharField(max_length=32)),
+                ("genesis_hash", models.CharField(max_length=64)),
+                ("program_id", models.CharField(max_length=64)),
+                ("bound_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
     ]

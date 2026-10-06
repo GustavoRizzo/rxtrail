@@ -9,7 +9,13 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Protocol, Self
 
-from rxtrail.domain import Dispensation, Prescription, PrescriptionDocument, Receipt
+from rxtrail.domain import (
+    Dispensation,
+    ParticipantStatus,
+    Prescription,
+    PrescriptionDocument,
+    Receipt,
+)
 
 
 class PrescriptionLedger(Protocol):
@@ -27,6 +33,14 @@ class PrescriptionLedger(Protocol):
     async def register_prescriber(self, authority: str, prescriber: str) -> Receipt: ...
 
     async def register_dispenser(self, authority: str, dispenser: str) -> Receipt: ...
+
+    async def set_prescriber_status(
+        self, authority: str, prescriber: str, status: ParticipantStatus
+    ) -> Receipt: ...
+
+    async def set_dispenser_status(
+        self, authority: str, dispenser: str, status: ParticipantStatus
+    ) -> Receipt: ...
 
     async def issue_prescription(
         self,

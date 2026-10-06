@@ -31,6 +31,8 @@ pub struct Prescriber {
     pub key: Pubkey,
     pub status: ParticipantStatus,
     pub registered_at: i64,
+    /// When the status last changed (registration, suspension, reinstatement).
+    pub status_changed_at: i64,
     pub bump: u8,
 }
 
@@ -42,6 +44,8 @@ pub struct Dispenser {
     pub key: Pubkey,
     pub status: ParticipantStatus,
     pub registered_at: i64,
+    /// When the status last changed (registration, suspension, reinstatement).
+    pub status_changed_at: i64,
     pub bump: u8,
 }
 

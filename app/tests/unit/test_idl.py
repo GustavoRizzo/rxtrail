@@ -112,4 +112,13 @@ def _sample_args(name):
             "expires_at": 1,
         },
         "dispense": {"quantity": 1},
+        "set_prescriber_status": {"status": "Suspended"},
+        "set_dispenser_status": {"status": "Active"},
     }[name]
+
+
+@pytest.mark.parametrize(("status", "byte"), [("Active", 0), ("Suspended", 1)])
+def test_unit_enum_arguments_are_their_variant_index(status, byte):
+    data = IDL.encode_instruction("set_prescriber_status", {"status": status})
+    assert data[:8] == anchor_discriminator("global", "set_prescriber_status")
+    assert data[8:] == bytes([byte])
