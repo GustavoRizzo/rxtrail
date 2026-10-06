@@ -1,8 +1,8 @@
 # Claude Code workspace: notes and instructions, kept local (not versioned).
 .claude/
 
-# Secrets and keys
-.env
+# Secrets and keys (envs/*.env.example files are versioned)
+envs/*.env
 .keys/
 *-keypair.json
 

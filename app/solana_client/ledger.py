@@ -187,6 +187,10 @@ class SolanaLedger:
 
     # -- reads ----------------------------------------------------------------------
 
+    async def genesis_hash(self) -> str:
+        """The identity of the chain this node serves: its first block's hash."""
+        return str((await self._call(self._client.get_genesis_hash)).value)
+
     async def initialized(self) -> bool:
         return await self._account(pdas.config(self.program_id)) is not None
 

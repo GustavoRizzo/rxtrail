@@ -74,7 +74,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SOLANA_ENDPOINTS = {
     # The validator container, reached over the compose network.
-    "localnet": ("http://localnet:8899", "ws://localnet:8900"),
+    "localnet": ("http://validator:8899", "ws://validator:8900"),
     "devnet": ("https://api.devnet.solana.com", "wss://api.devnet.solana.com"),
 }
 SOLANA_NETWORK = os.environ.get("SOLANA_NETWORK", "localnet")

@@ -164,6 +164,10 @@ class OutcomeUnknownError(RxTrailError):
         self.signature = signature
 
 
+class ChainMismatchError(RxTrailError):
+    """This database belongs to another chain (another network, or a reset localnet)."""
+
+
 class LedgerUnavailableError(RxTrailError):
     """The Solana node could not be reached, even after retries."""
 

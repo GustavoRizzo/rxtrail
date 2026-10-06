@@ -85,33 +85,46 @@ You need Docker and [just](https://just.systems). Everything else — Rust,
 Agave (Solana), Anchor, Python (managed by uv), Postgres — runs in
 containers. `just` alone lists every command.
 
-```bash
-git clone https://github.com/GustavoRizzo/rxtrail && cd rxtrail
-just bootstrap        # .env, images, database, migrations
-just build            # compile the program; copy its IDL to the app
-```
+### Environments
 
-Keys live in `.keys/` (never committed): one JSON keypair per participant,
-in the Solana CLI format. Three roles matter for running it:
+RxTrail runs in **environments**, one per Solana network:
+
+| Environment | Network | Use |
+|---|---|---|
+| `localnet` | a private validator in a container, unlimited faucet | development and tests |
+| `devnet` | Solana's public test network | public demo |
+
+One environment = one network = one database = one key set
+(`.keys/<network>/`, never committed) = one config (`envs/<network>.env`).
+Both can run side by side without mixing: each is its own Docker Compose
+project with its own containers and volumes. A deployment binds to exactly
+one.
+
+The database also remembers which chain it belongs to (the network's
+genesis hash) and the app refuses to run against any other — a misconfigured
+environment, or a local validator that was reset, fails loudly instead of
+mixing records from two chains.
+
+Three keys matter for running an environment:
 
 | Key | Role | Needs SOL? |
 |---|---|---|
-| `rxtrail-program-keypair.json` | the program's own address (`declare_id!`) | no |
-| `deployer.json` | publishes and upgrades the program | yes, to deploy |
-| `operator.json` | pays every fee and rent deposit for participants | yes, while in use |
+| `.keys/rxtrail-program-keypair.json` | the program's address (same on every network) | no |
+| `.keys/<network>/deployer.json` | publishes and upgrades the program | yes, to deploy |
+| `.keys/<network>/operator.json` | pays every fee and rent deposit | yes, while in use |
 
 Participants (authorities, prescribers, dispensers) sign but never pay.
 
-### On a local validator (development)
-
-A private single-node chain in a container, with an unlimited faucet.
+### Local environment (development)
 
 ```bash
-just localnet                                  # start the validator
-just deploy-localnet                           # creates and funds the deployer
-just rx localnet setup                         # keys, operator funds, initialize
-just rx localnet enable-prescriber dr-ana      # the professional authority signs
-just rx localnet enable-dispenser pharmacy-one # the health authority signs
+git clone https://github.com/GustavoRizzo/rxtrail && cd rxtrail
+just bootstrap localnet          # config, images, database, validator, migrations
+just build                       # compile the program; copy its IDL to the app
+just deploy localnet             # creates and funds a local deployer
+just rx localnet setup           # keys, operator funds, initialize
+just rx localnet enable-prescriber dr-ana       # the professional authority signs
+just rx localnet enable-dispenser pharmacy-one  # the health authority signs
 just rx localnet issue dr-ana --patient-document 123 --patient-name "Maria Silva" \
     --medication "Clonazepam 2mg" --quantity 30 --days 30
 just rx localnet dispense pharmacy-one <prescription id> 20
@@ -119,39 +132,28 @@ just rx localnet dispense pharmacy-one <prescription id> 15   # refused: 10 rema
 just rx localnet audit <prescription id>
 ```
 
-`just localnet-reset` wipes the chain (redeploy afterwards).
+`just reset-localnet` wipes the local chain **and** its database together,
+then redeploys and sets up again.
 
-### On devnet (the public test network)
+### Devnet environment (public demo)
 
-Same commands with `devnet`, after funding two keys. Devnet SOL is free
-but rationed: use https://faucet.solana.com (connecting GitHub raises the
-limit) and confirm arrivals with `just devnet-status`.
+Devnet SOL is free but rationed: use https://faucet.solana.com (connecting
+GitHub raises the limit) and check arrivals with `just status devnet`.
 
 ```bash
-just devnet-status    # prints the deployer and operator addresses and balances
+just bootstrap devnet
+just status devnet       # deployer and operator addresses and balances
 ```
 
-1. **Fund the deployer with ~2.5 SOL** (see costs below), then deploy:
+1. **Fund the deployer with ~2.5 SOL**, then deploy:
    ```bash
-   just deploy-devnet
-   just devnet-status    # the program now shows up
+   just deploy devnet
+   just status devnet    # the program now shows up
    ```
-2. **Fund the operator with ~0.3 SOL** — from the faucet, or from any devnet
-   wallet you hold. After deploying, the deployer keeps ~1.4 SOL; leave at
-   least ~1.1 SOL there, since every upgrade needs a temporary buffer again:
-   ```bash
-   just chain solana transfer <operator address> 0.3 \
-       --keypair /keys/deployer.json --url https://api.devnet.solana.com \
-       --allow-unfunded-recipient
-   ```
-3. **Initialize and run the flow**:
-   ```bash
-   just rx devnet setup
-   just rx devnet enable-prescriber dr-ana
-   just rx devnet enable-dispenser pharmacy-one
-   just rx devnet issue dr-ana --patient-document 123 --patient-name "Maria Silva" \
-       --medication "Clonazepam 2mg" --quantity 30 --days 30
-   ```
+2. **Fund the operator with ~0.3 SOL.** Its key is created by `setup`; run
+   `just rx devnet setup` once to create it and print its address, fund it,
+   then run `setup` again. Keep ~1.1 SOL in the deployer for future upgrades.
+3. **Run the flow** with `just rx devnet ...`, as above.
 
 Every address printed can be inspected on
 `https://explorer.solana.com/address/<address>?cluster=devnet`.
@@ -192,8 +194,9 @@ just test             # program tests (LiteSVM) + app tests
 | `app/tests/integration` | Postgres | off-chain store, database permissions |
 | `app/tests/localnet` | the program deployed on the local validator | the full flow; refusals come from the chain itself |
 
-The localnet suite is skipped unless the program is deployed
-(`just localnet && just deploy-localnet`). CI runs everything on each push.
+App tests run in the `localnet` environment against its own `_test`
+database. The localnet suite is skipped unless the program is deployed
+there (`just deploy localnet`). CI runs everything on each push.
 
 ## Roadmap
 

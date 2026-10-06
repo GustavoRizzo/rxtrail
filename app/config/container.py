@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from django.conf import settings
 
+from records.binding import ensure_bound
 from records.repositories import DjangoDocumentVault, DjangoPatientDirectory
 from rxtrail.services import RxTrail
 from solana_client.keystore import FileKeyStore
@@ -26,6 +27,12 @@ def ledger() -> SolanaLedger:
 
 @asynccontextmanager
 async def open_rxtrail() -> AsyncIterator[tuple[RxTrail, SolanaLedger]]:
-    """The application plus its ledger connection, closed on exit."""
+    """The application plus its ledger connection, closed on exit.
+
+    Refuses to start if this database belongs to another chain.
+    """
     async with ledger() as chain:
+        await ensure_bound(
+            settings.SOLANA_NETWORK, await chain.genesis_hash(), str(chain.program_id)
+        )
         yield RxTrail(chain, DjangoDocumentVault(), DjangoPatientDirectory()), chain

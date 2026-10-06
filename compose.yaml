@@ -1,13 +1,16 @@
-name: rxtrail
+# One file, one environment per run. The justfile picks it:
+#   docker compose -p rxtrail-<network> --env-file envs/<network>.env ...
+# Each environment gets its own containers, volumes (database, chain) and
+# keys, so localnet and devnet can run side by side without ever mixing.
 
 x-app: &app
   build: app
   image: rxtrail-app
-  env_file: .env
+  env_file: envs/${RXTRAIL_NETWORK}.env
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
   volumes:
     - ./app:/app
-    - ./.keys:/keys
+    - ./.keys/${RXTRAIL_NETWORK}:/keys
   depends_on:
     db:
       condition: service_healthy
@@ -45,27 +48,15 @@ services:
     ports:
       - "${WEB_PORT}:8000"
 
-  # Rust/Anchor toolchain for one-off commands: `just chain anchor --version`.
-  chain:
-    <<: *chain
-    volumes:
-      - ./program:/work
-      - ./.keys:/keys
-      # Caches survive between runs: crates, Rust toolchains, SBF platform tools.
-      - cargo-registry:/home/builder/.cargo/registry
-      - rustup:/home/builder/.rustup
-      - solana-cache:/home/builder/.cache/solana
-    profiles: ["tools"]
-
-  # Private single-node Solana cluster.
-  localnet:
+  # Private single-node Solana cluster (localnet environment only).
+  validator:
     <<: *chain
     entrypoint: ["localnet-entrypoint"]
     ports:
-      - "${LOCALNET_RPC_PORT}:8899"
-      - "${LOCALNET_WS_PORT}:8900"
+      - "${LOCALNET_RPC_PORT:-59899}:8899"
+      - "${LOCALNET_WS_PORT:-59900}:8900"
     volumes:
-      - localnet-ledger:/home/builder/ledger
+      - ledger:/home/builder/ledger
     environment:
       LOCALNET_LEDGER_SHREDS: ${LOCALNET_LEDGER_SHREDS:-2000000}
     security_opt:
@@ -77,11 +68,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
-    profiles: ["localnet"]
+    profiles: ["validator"]
+
+  # Rust/Anchor toolchain for one-off commands (build, test, deploy).
+  chain:
+    <<: *chain
+    volumes:
+      - ./program:/work
+      - ./.keys/${RXTRAIL_NETWORK}:/keys
+      # Caches survive between runs: crates, Rust toolchains, SBF platform tools.
+      - cargo-registry:/home/builder/.cargo/registry
+      - rustup:/home/builder/.rustup
+      - solana-cache:/home/builder/.cache/solana
+    profiles: ["tools"]
 
 volumes:
   pgdata:
+  ledger:
   cargo-registry:
   rustup:
   solana-cache:
-  localnet-ledger:
