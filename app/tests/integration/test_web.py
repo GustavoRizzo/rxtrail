@@ -534,10 +534,32 @@ def test_the_patient_copy_opens_without_an_account(client, cast):
     assert response.status_code == 200
     for useful in ("Maria Silva", "1 at night", "Take with water", "Dr", "30", "Valid"):
         assert useful in page, useful
+    assert "Substitution allowed" in page
     assert "Calmazen 2 mg" in page and "Clonazepam Beta" in page  # any version accepted
     assert "Generics are usually cheaper" in page
-    assert "Genuine and unaltered" in page  # the document matches the on-chain hash
+    assert "verified on Solana" in page  # the document matches the on-chain hash
     assert 'class="rx-qr"' in page and f"/rx/{rx}/" in page
+
+
+def test_on_screen_the_qr_code_copies_its_link(client, cast):
+    _, rx = issue(client)
+
+    page = client.get(patient_link(rx)).content.decode()
+
+    assert f"rxCopy('http://testserver/rx/{rx}/', this)" in page
+
+
+def test_the_signature_links_to_the_issuing_transaction(client, cast, ledger):
+    _, rx = issue(client)
+    signature = Activity.objects.get(action="issue").signature
+
+    page = client.get(patient_link(rx)).content.decode()
+    assert f"/tx/{signature}" in page
+
+    # Issued outside this app (no transaction on record): the prescription's account.
+    Activity.objects.all().delete()
+    page = client.get(patient_link(rx)).content.decode()
+    assert f"/address/{ledger.prescriptions[bytes.fromhex(rx)].address}" in page
 
 
 def test_the_patient_copy_is_kept_out_of_caches_and_search_engines(client, cast):
@@ -560,7 +582,7 @@ def test_the_patient_copy_lists_only_the_locked_brand(client, cast):
 
     page = client.get(patient_link(rx)).content.decode()
 
-    assert "Only this brand" in page and "Calmazen 2 mg" in page
+    assert "Do not substitute" in page and "Calmazen 2 mg" in page
     assert "Clonazepam Beta" not in page
 
 
@@ -571,9 +593,21 @@ def test_the_patient_copy_shows_what_was_collected_and_what_remains(client, cast
 
     page = client.get(patient_link(rx)).content.decode()
 
-    assert "Nothing collected yet" not in page
-    assert "10 tablets · Clonazepam Beta" in page and "Oct 1, 2026" in page
-    assert "of 30 tablets" in page
+    assert "Nothing dispensed yet" not in page
+    assert "Clonazepam Beta" in page and "10 tablets" in page and "Oct 1, 2026" in page
+    assert '<span class="font-semibold">20</span> of 30 tablets left' in page
+
+
+def test_an_expired_prescription_is_stamped_on_the_patient_copy(client, cast, ledger):
+    _, rx = issue(client)
+    key = bytes.fromhex(rx)
+    ledger.prescriptions[key] = replace(
+        ledger.prescriptions[key], expires_at=ledger.prescriptions[key].issued_at
+    )
+
+    page = client.get(patient_link(rx)).content.decode()
+
+    assert 'class="rx-stamp' in page and "Expired" in page and "days left" not in page
 
 
 def test_the_pharmacy_looks_up_what_the_qr_code_holds(client, cast):

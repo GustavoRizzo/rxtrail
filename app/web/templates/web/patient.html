@@ -3,142 +3,129 @@
 {% block title %}Your prescription{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 {% block content %}
+{# The patient's copy reads like the paper prescription people know: one sheet, #}
+{# letterhead, ℞, signature, the pharmacies' record and the small print. #}
 {% with unit=medication.record.unit|default:"unit" %}
-<div class="rx-reveal mb-6 flex flex-wrap items-center justify-between gap-3">
-  <p class="flex items-center gap-2 text-sm text-slate-400"><i data-lucide="user-round" class="h-4 w-4"></i> Patient copy · {{ record.patient.name }}</p>
-  <div class="rx-no-print flex flex-wrap gap-2" x-data="{ canShare: !!navigator.share }">
-    <button type="button" onclick="window.print()" class="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="printer" class="h-4 w-4"></i> Print</button>
-    <button type="button" x-show="canShare" x-cloak @click="navigator.share({ title: 'My prescription', url: location.href }).catch(() => {})" class="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="share-2" class="h-4 w-4"></i> Share</button>
-    <button type="button" onclick="rxCopy(location.href, this)" class="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="link" class="h-4 w-4"></i> <span data-label>Copy link</span></button>
-  </div>
+<div class="rx-no-print mx-auto mb-4 flex max-w-3xl flex-wrap items-center justify-end gap-2" x-data="{ canShare: !!navigator.share }">
+  <button type="button" onclick="window.print()" class="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="printer" class="h-4 w-4"></i> Print</button>
+  <button type="button" x-show="canShare" x-cloak @click="navigator.share({ title: 'My prescription', url: location.href }).catch(() => {})" class="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="share-2" class="h-4 w-4"></i> Share</button>
+  <button type="button" onclick="rxCopy(location.href, this)" class="flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"><i data-lucide="link" class="h-4 w-4"></i> <span data-label>Copy link</span></button>
 </div>
 
-<section class="rx-card rx-reveal p-6 sm:p-7">
-  <div class="grid gap-7 md:grid-cols-[1fr_15rem] md:items-start">
+<article class="rx-sheet rx-reveal mx-auto max-w-3xl">
+  <header class="flex items-start justify-between gap-6 border-b-2 border-ink pb-5">
     <div class="min-w-0">
-      <div class="flex flex-wrap items-center gap-2">
-        <p class="text-xs uppercase tracking-wide text-slate-500">Your prescription</p>
-        {% if trail.frozen %}
-          <span class="flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger"><i data-lucide="snowflake" class="h-3.5 w-3.5"></i> On hold</span>
-        {% elif standing == "active" %}
-          <span class="flex items-center gap-1 rounded-full bg-brand-accent/10 px-2.5 py-0.5 text-xs font-medium text-brand-accent"><i data-lucide="circle-check" class="h-3.5 w-3.5"></i> Valid · {{ days_left }} day{{ days_left|pluralize }} left</span>
-        {% elif standing == "completed" %}
-          <span class="flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-medium text-slate-300"><i data-lucide="check-check" class="h-3.5 w-3.5"></i> Completed</span>
+      <p class="text-xl font-semibold sm:text-2xl">{{ document.prescriber_name }}</p>
+      {% if prescriber.license_number %}<p class="text-sm text-ink-muted">Licence {{ prescriber.license_number }}</p>{% endif %}
+      <p class="mt-4 font-sans text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">Controlled prescription</p>
+      <p class="font-sans text-xs text-ink-muted">Patient copy</p>
+    </div>
+    {# On screen the code is also a button: a click copies the link it holds. #}
+    <button type="button" onclick="rxCopy('{{ verify_url }}', this)" title="Copy the link in this code" class="group w-24 shrink-0 cursor-pointer rounded-md text-center sm:w-28">
+      <span class="relative block">
+        <span class="rx-qr-frame block transition group-hover:opacity-40">{{ qr }}</span>
+        <span class="rx-no-print absolute inset-0 hidden place-items-center group-hover:grid"><span class="grid h-9 w-9 place-items-center rounded-full bg-paper text-ink shadow"><i data-lucide="copy" class="h-4 w-4"></i></span></span>
+      </span>
+      <span data-label class="mt-1 block font-sans text-[0.65rem] leading-tight text-ink-muted">Pharmacy: scan here</span>
+    </button>
+  </header>
+
+  <dl class="mt-5 grid gap-x-8 gap-y-2 sm:grid-cols-[1fr_auto]">
+    <div class="flex items-baseline gap-2"><dt class="text-sm text-ink-muted">Patient</dt><dd class="flex-1 border-b border-dotted border-ink/40 text-lg font-semibold">{{ record.patient.name }}</dd></div>
+    <div class="flex items-baseline gap-2"><dt class="text-sm text-ink-muted">Date</dt><dd class="border-b border-dotted border-ink/40">{{ rx.issued_at|date:"M j, Y" }}</dd></div>
+  </dl>
+
+  <section class="mt-8">
+    <p class="text-4xl leading-none" aria-label="Prescription">℞</p>
+    <div class="mt-4 sm:pl-8">
+      <p class="flex flex-wrap items-baseline gap-x-2 text-lg sm:text-xl">
+        <span class="font-semibold">{% if medication %}{{ medication.record.name }}{% else %}{{ document.medication }}{% endif %}</span>
+        <span class="hidden min-w-6 flex-1 border-b border-dotted border-ink/40 sm:block"></span>
+        <span class="w-full whitespace-nowrap font-semibold sm:w-auto">{{ rx.quantity_granted }} {{ unit }}{{ rx.quantity_granted|pluralize }}</span>
+      </p>
+      {% if medication %}<p class="text-sm text-ink-muted">{{ medication.record.active_ingredient }} · {{ medication.record.strength }} · {{ medication.record.form }}</p>{% endif %}
+      <p class="mt-4 text-lg">{{ document.dosage }}</p>
+      {% if document.instructions %}<p class="mt-1 italic">{{ document.instructions }}</p>{% endif %}
+      <p class="mt-4 text-sm">
+        {% if rx.prescribed_product %}
+          <span class="font-semibold">Do not substitute.</span> Only {% for p in accepted %}{{ p.record.brand_name }} ({{ p.record.manufacturer.name }}){% empty %}the brand chosen by the prescriber, now withdrawn{% endfor %}.
         {% else %}
-          <span class="flex items-center gap-1 rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger"><i data-lucide="calendar-x" class="h-3.5 w-3.5"></i> Expired</span>
+          <span class="font-semibold">Substitution allowed.</span> Accepted:
+          {% for p in accepted %}{{ p.record.brand_name }} ({{ p.record.manufacturer.name }}, {{ p.record.get_kind_display|lower }}){% if not forloop.last %}; {% endif %}{% empty %}no product of this medication is on the market right now{% endfor %}.
         {% endif %}
-      </div>
-      <h1 class="mt-2 text-2xl font-bold text-white sm:text-3xl">{% if medication %}{{ medication.record.name }}{% else %}{{ document.medication }}{% endif %}</h1>
-      {% if medication %}<p class="mt-1 text-sm text-slate-400">{{ medication.record.active_ingredient }} · {{ medication.record.strength }} · {{ medication.record.form }}</p>{% endif %}
+      </p>
+    </div>
+  </section>
 
-      <div class="mt-6 grid grid-cols-2 gap-3">
-        <div class="rounded-2xl bg-white/5 p-4">
-          <p class="text-xs text-slate-500">Still available</p>
-          <p class="mt-1 text-3xl font-bold text-white">{{ rx.remaining }}</p>
-          <p class="text-xs text-slate-400">of {{ rx.quantity_granted }} {{ unit }}{{ rx.quantity_granted|pluralize }}</p>
-        </div>
-        <div class="rounded-2xl bg-white/5 p-4">
-          <p class="text-xs text-slate-500">Valid until</p>
-          <p class="mt-1 text-xl font-semibold text-white">{{ rx.expires_at|date:"M j, Y" }}</p>
-          <p class="text-xs text-slate-400">issued {{ rx.issued_at|date:"M j, Y" }}</p>
-        </div>
-      </div>
-      <div class="rx-progress mt-4{% if standing != 'active' or trail.frozen %} is-muted{% endif %}"><span style="width: {% widthratio rx.quantity_dispensed rx.quantity_granted 100 %}%"></span></div>
-      <p class="mt-2 text-xs text-slate-500">{{ rx.quantity_dispensed }} {{ unit }}{{ rx.quantity_dispensed|pluralize }} already collected.</p>
+  <p class="mt-8 text-sm">
+    Valid until <span class="font-semibold">{{ rx.expires_at|date:"M j, Y" }}</span>{% if standing == "active" and not trail.frozen %} ({{ days_left }} day{{ days_left|pluralize }} left){% endif %}{% if medication.record.regulatory_list %} · Control list {{ medication.record.regulatory_list }}{% endif %}
+  </p>
+
+  {# A stamp goes where a real one would: the blank space beside the signature. #}
+  <div class="mt-10 flex flex-col-reverse items-center gap-8 sm:flex-row sm:items-end sm:justify-between">
+    <div class="relative w-44 shrink-0 {% if trail.frozen or standing != 'active' %}h-16{% else %}hidden sm:block{% endif %}">
       {% if trail.frozen %}
-        <p class="mt-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-slate-200"><i data-lucide="snowflake" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> This medication was recalled by the health authorities. Pharmacies cannot hand it out for now: talk to your prescriber.</p>
+        <p class="rx-stamp inset-0 text-sm">On hold<br><span class="text-[0.6rem] tracking-widest">medication recalled</span></p>
+      {% elif standing == "expired" %}
+        <p class="rx-stamp inset-x-0 top-2 text-lg">Expired</p>
+      {% elif standing == "completed" %}
+        <p class="rx-stamp inset-x-0 top-2 text-lg">Completed</p>
       {% endif %}
     </div>
-
-    <figure class="mx-auto w-full max-w-60 text-center">
-      <div class="rx-qr-frame">{{ qr }}</div>
-      <figcaption class="mt-3 text-sm font-medium text-slate-200">Show this at the pharmacy</figcaption>
-      <p class="mt-1 font-mono text-xs text-slate-500">{{ record.prescription_id|short:6 }}</p>
-    </figure>
-  </div>
-</section>
-
-<div class="mt-6 grid gap-6 md:grid-cols-2">
-  <section class="rx-card rx-reveal p-6" style="--i:1">
-    <h2 class="mb-4 flex items-center gap-2 font-semibold text-white"><i data-lucide="clock-3" class="h-5 w-5 text-brand-primary"></i> How to take it</h2>
-    <p class="text-lg font-medium text-slate-100">{{ document.dosage }}</p>
-    {% if document.instructions %}<p class="mt-2 text-sm text-slate-300">{{ document.instructions }}</p>{% endif %}
-    <p class="mt-4 text-xs text-slate-500">Follow your prescriber's directions. Do not change the dose or stop on your own.</p>
-  </section>
-
-  <section class="rx-card rx-reveal p-6" style="--i:2">
-    <h2 class="mb-4 flex items-center gap-2 font-semibold text-white"><i data-lucide="store" class="h-5 w-5 text-brand-secondary"></i> At the pharmacy</h2>
-    <ol class="space-y-3 text-sm text-slate-300">
-      <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/5 text-xs font-semibold text-slate-200">1</span><span>Go to any pharmacy that uses RxTrail.</span></li>
-      <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/5 text-xs font-semibold text-slate-200">2</span><span>Show the QR code, on your phone or printed, and an identity document.</span></li>
-      <li class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/5 text-xs font-semibold text-slate-200">3</span><span>You may collect it in parts, at different pharmacies, until {{ rx.expires_at|date:"M j" }}. Every pharmacy sees the same balance at once.</span></li>
-    </ol>
-    <div class="mt-5 border-t border-white/5 pt-4">
-      {% if rx.prescribed_product %}
-        <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-brand-secondary"><i data-lucide="lock-keyhole" class="h-3.5 w-3.5"></i> Only this brand</p>
-        <p class="mt-1 text-xs text-slate-500">Your prescriber did not allow substitutes.</p>
+    <div class="w-full max-w-xs text-center">
+      {% if trail.document_verified and trail.consistent %}
+        <a target="_blank" rel="noopener" href="{% if issue_signature %}{{ issue_signature|explorer:'tx' }}{% else %}{{ rx.address|explorer }}{% endif %}" title="See the signature on the Solana explorer" class="flex items-center justify-center gap-1 font-sans text-xs text-ink-muted underline decoration-dotted underline-offset-2 hover:text-ink"><i data-lucide="badge-check" class="h-3.5 w-3.5"></i> Signed digitally · verified on Solana <i data-lucide="external-link" class="rx-no-print h-3 w-3"></i></a>
       {% else %}
-        <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Any of these is accepted</p>
-        {% if accepted %}<p class="mt-1 text-xs text-slate-500">Same active ingredient and strength. Generics are usually cheaper: ask for them.</p>{% endif %}
+        <p class="flex items-center justify-center gap-1 font-sans text-xs font-semibold text-stamp"><i data-lucide="shield-alert" class="h-3.5 w-3.5"></i> Could not be verified: ask your prescriber</p>
       {% endif %}
-      <ul class="mt-3 space-y-2">
-        {% for p in accepted %}
-          <li class="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2 text-sm">
-            <span class="min-w-0"><span class="text-slate-100">{{ p.record.brand_name }}</span> <span class="text-xs text-slate-500">· {{ p.record.manufacturer.name }}</span></span>
-            <span class="shrink-0 rounded-full px-2 py-0.5 text-xs {% if p.record.kind == 'generic' %}bg-brand-accent/10 text-brand-accent{% else %}bg-white/5 text-slate-400{% endif %}">{{ p.record.get_kind_display|lower }}</span>
-          </li>
-        {% empty %}
-          <li class="text-sm text-slate-500">No product of this medication is on the market right now.</li>
-        {% endfor %}
-      </ul>
+      <p class="mt-1 border-t border-ink pt-1 font-semibold">{{ document.prescriber_name }}</p>
+      <p class="font-sans text-xs text-ink-muted">{{ rx.issued_at|date:"M j, Y H:i" }} UTC · key {{ rx.prescriber|short:4 }}</p>
     </div>
+  </div>
+
+  <section class="mt-10 border-t-2 border-ink pt-5">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="font-sans text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted">Pharmacy record</h2>
+      <p class="text-sm"><span class="font-semibold">{{ rx.remaining }}</span> of {{ rx.quantity_granted }} {{ unit }}{{ rx.quantity_granted|pluralize }} left</p>
+    </div>
+    <table class="mt-3 w-full text-left text-sm">
+      <thead class="font-sans text-xs text-ink-muted">
+        <tr class="border-b border-ink/30"><th class="py-1.5 pr-3 font-medium">Date</th><th class="py-1.5 pr-3 font-medium">Pharmacy</th><th class="hidden py-1.5 pr-3 font-medium sm:table-cell">Product</th><th class="py-1.5 text-right font-medium">Qty</th></tr>
+      </thead>
+      <tbody>
+        {% for d in trail.dispensations %}
+          <tr class="border-b border-dotted border-ink/30 align-top">
+            <td class="py-2 pr-3 whitespace-nowrap">{{ d.dispensed_at|date:"M j, Y" }}</td>
+            {% with p=products|get_item:d.product %}
+            <td class="py-2 pr-3">{{ d.dispenser|who:names }}<span class="block text-xs text-ink-muted sm:hidden">{{ p.brand_name }}</span></td>
+            <td class="hidden py-2 pr-3 sm:table-cell">{{ p.brand_name|default:"—" }}</td>
+            {% endwith %}
+            <td class="py-2 text-right whitespace-nowrap">{{ d.quantity }} {{ unit }}{{ d.quantity|pluralize }}</td>
+          </tr>
+        {% empty %}
+          <tr class="border-b border-dotted border-ink/30"><td colspan="4" class="py-3 italic text-ink-muted">Nothing dispensed yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </section>
 
-  <section class="rx-card rx-reveal p-6" style="--i:3">
-    <h2 class="mb-4 flex items-center gap-2 font-semibold text-white"><i data-lucide="stethoscope" class="h-5 w-5 text-brand-primary"></i> Prescription details</h2>
-    <dl class="grid grid-cols-2 gap-4 text-sm">
-      <div><dt class="text-xs text-slate-500">Patient</dt><dd class="text-slate-200">{{ record.patient.name }}</dd></div>
-      <div><dt class="text-xs text-slate-500">Issued on</dt><dd class="text-slate-200">{{ rx.issued_at|date:"M j, Y" }}</dd></div>
-      <div><dt class="text-xs text-slate-500">Prescriber</dt><dd class="text-slate-200">{{ document.prescriber_name }}</dd></div>
-      {% if prescriber.license_number %}<div><dt class="text-xs text-slate-500">Licence</dt><dd class="text-slate-200">{{ prescriber.license_number }}</dd></div>{% endif %}
-      <div><dt class="text-xs text-slate-500">Quantity</dt><dd class="text-slate-200">{{ rx.quantity_granted }} {{ unit }}{{ rx.quantity_granted|pluralize }}</dd></div>
-      {% if medication.record.regulatory_list %}<div><dt class="text-xs text-slate-500">Control list</dt><dd class="text-slate-200">{{ medication.record.regulatory_list }}</dd></div>{% endif %}
-    </dl>
-    <p class="mt-5 flex items-start gap-2 text-xs text-slate-500"><i data-lucide="triangle-alert" class="mt-0.5 h-3.5 w-3.5 shrink-0"></i> Controlled medication: for you only. Keep it out of reach of children and never share it.</p>
-  </section>
-
-  <section class="rx-card rx-reveal p-6" style="--i:4">
-    <h2 class="mb-4 flex items-center gap-2 font-semibold text-white"><i data-lucide="pill" class="h-5 w-5 text-brand-accent"></i> Collected so far</h2>
-    <ul class="space-y-3">
-      {% for d in trail.dispensations %}
-        <li class="flex items-start justify-between gap-3 text-sm">
-          <span class="min-w-0">
-            <span class="text-slate-100">{{ d.quantity }} {{ unit }}{{ d.quantity|pluralize }}{% with p=products|get_item:d.product %}{% if p %} · {{ p.brand_name }}{% endif %}{% endwith %}</span>
-            <span class="block text-xs text-slate-500">{{ d.dispenser|who:names }}</span>
-          </span>
-          <span class="shrink-0 text-xs text-slate-400">{{ d.dispensed_at|date:"M j, Y H:i" }}</span>
-        </li>
-      {% empty %}
-        <li class="text-sm text-slate-500">Nothing collected yet.</li>
-      {% endfor %}
+  <section class="mt-8 border-t border-ink/20 pt-5 font-sans text-xs leading-relaxed text-ink-muted">
+    <h2 class="font-semibold uppercase tracking-[0.2em]">For the patient</h2>
+    <ul class="mt-2 list-disc space-y-1 pl-4">
+      {% if trail.frozen %}<li class="font-semibold text-stamp">This medication was recalled by the health authorities. Pharmacies cannot hand it out for now: talk to your prescriber.</li>{% endif %}
+      <li>Take this prescription, printed or on your phone, to any pharmacy that uses RxTrail, with an identity document. The pharmacy scans the code at the top.</li>
+      <li>You may collect it in parts, at different pharmacies, until {{ rx.expires_at|date:"M j, Y" }}. Every pharmacy sees the same balance at once.</li>
+      {% if not rx.prescribed_product and accepted|length > 1 %}<li>Any version listed above is the same medicine. Generics are usually cheaper: ask for them.</li>{% endif %}
+      <li>Controlled medication: for you only. Follow the dose prescribed, keep it out of reach of children and never share it.</li>
+      <li>This link is personal: anyone who has it can read this page. Your name never goes on the blockchain; the code only points to the public record, which shows the medication but not who it is for.</li>
     </ul>
   </section>
-</div>
 
-<section class="rx-card rx-reveal mt-6 p-6" style="--i:5">
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div class="flex items-start gap-3">
-      {% if trail.document_verified and trail.consistent %}
-        <i data-lucide="shield-check" class="mt-0.5 h-6 w-6 shrink-0 text-brand-accent"></i>
-        <div><p class="font-semibold text-brand-accent">Genuine and unaltered</p><p class="text-sm text-slate-400">This prescription matches the fingerprint recorded on Solana when it was issued. Nobody can change it, and every pharmacy reads the same balance.</p></div>
-      {% else %}
-        <i data-lucide="shield-alert" class="mt-0.5 h-6 w-6 shrink-0 text-danger"></i>
-        <div><p class="font-semibold text-danger">Could not be verified</p><p class="text-sm text-slate-400">Show this page to the pharmacy, or ask your prescriber for a new copy.</p></div>
-      {% endif %}
-    </div>
-    <a href="{{ verify_url }}" class="rx-no-print flex shrink-0 items-center gap-1 text-sm text-brand-secondary hover:underline">Public record <i data-lucide="arrow-right" class="h-4 w-4"></i></a>
-  </div>
-  <p class="mt-4 flex items-start gap-2 border-t border-white/5 pt-4 text-xs text-slate-500"><i data-lucide="eye-off" class="mt-0.5 h-3.5 w-3.5 shrink-0"></i> This link is personal: anyone who has it can read this page. Your name never goes on the blockchain; the QR code only points to the public record, which shows the medication but not who it is for.</p>
-</section>
+  <footer class="mt-6 flex flex-wrap items-center justify-between gap-2 font-sans text-[0.65rem] text-ink-muted">
+    <span>Issued through RxTrail · Solana {{ settings_network }}</span>
+    <span class="font-mono">No. {{ record.prescription_id|short:6 }}</span>
+    <a href="{{ verify_url }}" class="rx-no-print underline hover:text-ink">Public record</a>
+  </footer>
+</article>
 {% endwith %}
 {% endblock %}

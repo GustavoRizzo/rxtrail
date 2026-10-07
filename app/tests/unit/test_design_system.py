@@ -104,6 +104,11 @@ def test_qr_codes_and_printouts_are_dark_on_light_with_ample_contrast():
     assert COLOURS["paper"][3] == COLOURS["ink"][3] == 1.0
 
 
+@pytest.mark.parametrize("fg", ["ink-muted", "stamp"])
+def test_everything_written_on_paper_is_readable(fg):
+    assert contrast(fg, "paper") >= TEXT, f"--{fg} on --paper: {contrast(fg, 'paper'):.2f}:1"
+
+
 def test_the_browser_is_told_the_theme():
     assert re.search(r":root\s*{[^}]*color-scheme\s*:\s*(dark|light)", TOKENS)
 

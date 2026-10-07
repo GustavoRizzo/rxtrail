@@ -148,11 +148,13 @@ def verify(request):
     return redirect("web:prescription", prescription_id=prescription_id)
 
 
+def _verification_link(request, prescription_id: str) -> str:
+    """What the QR code printed on the prescription holds: its public record."""
+    return request.build_absolute_uri(reverse("web:prescription", args=[prescription_id]))
+
+
 def _verification_qr(request, prescription_id: str):
-    """The QR code printed on the prescription: its public verification link."""
-    return qrcodes.svg(
-        request.build_absolute_uri(reverse("web:prescription", args=[prescription_id]))
-    )
+    return qrcodes.svg(_verification_link(request, prescription_id))
 
 
 def prescription(request, prescription_id: str):
@@ -263,7 +265,15 @@ def patient_copy(request, token: str):
             "products": named,
             "names": _names(),
             "prescriber": Participant.objects.filter(key_name=record.prescriber).first(),
-            "verify_url": reverse("web:prescription", args=[prescription_id]),
+            # The prescriber's signature itself: the issuing transaction, when
+            # this app sent it; otherwise the prescription's account.
+            "issue_signature": Activity.objects.filter(
+                prescription_id=prescription_id, action="issue"
+            )
+            .exclude(signature="")
+            .values_list("signature", flat=True)
+            .first(),
+            "verify_url": _verification_link(request, prescription_id),
             "qr": _verification_qr(request, prescription_id),
         },
     )

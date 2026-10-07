@@ -176,22 +176,57 @@ select.rx-input { appearance: none; padding-right: 2.25rem; cursor: pointer; }
 .rx-qr { display: block; width: 100%; height: auto; shape-rendering: crispEdges; }
 .rx-qr path { stroke: var(--ink); }
 
-/* Printing (the patient's copy): ink on paper, no chrome, no effects. */
+/* A paper document on screen (the patient's copy): one sheet, ink on paper,
+   a thin letterhead in the brand gradient. Deliberately not a card: it should
+   read like the paper prescription people know. */
+.rx-sheet {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-document);
+  border-radius: 0.375rem;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent),
+    0 40px 90px -40px color-mix(in srgb, var(--brand-primary) 45%, transparent);
+}
+.rx-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 6px;
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: var(--brand-gradient);
+}
+.rx-sheet .rx-qr-frame { background: none; padding: 0; }
+
+/* A rubber stamp across the sheet: the prescription is over or on hold. */
+.rx-stamp {
+  position: absolute;
+  transform: rotate(-11deg);
+  border: 4px double var(--stamp);
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.9rem;
+  color: var(--stamp);
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+/* Printing (the patient's copy): only the sheet, as the page itself. */
 @media print {
-  @page { margin: 14mm; }
+  @page { margin: 12mm; }
   body, .rx-backdrop { background: var(--paper) !important; }
   .rx-backdrop::before, .rx-backdrop::after, .rx-no-print { display: none !important; }
-  body * {
-    color: var(--ink) !important;
-    background: none !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    animation: none !important;
-  }
-  .rx-card { border: 1px solid var(--ink) !important; break-inside: avoid; }
-  .rx-progress { border: 1px solid var(--ink); }
-  .rx-progress > span { background: var(--ink) !important; }
   main { max-width: none !important; padding: 0 !important; }
+  .rx-sheet { box-shadow: none; padding: 0; max-width: none; }
+  .rx-sheet::before { display: none; }
+  .rx-reveal { animation: none !important; }
 }
 
 /* Alpine: hide x-cloak'd elements until Alpine has started. */

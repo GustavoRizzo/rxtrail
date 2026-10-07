@@ -40,11 +40,15 @@
   --text: #f1f5f9;             /* text inside form fields */
   --placeholder: rgb(148 163 184 / 0.38); /* hint text: clearly fainter than real values */
 
-  /* Paper: QR codes (scanners need dark on light) and printouts */
-  --paper: #ffffff;
-  --ink: #0b0b14;
+  /* Paper: the patient's copy is a sheet, like a paper prescription; QR
+     codes (scanners need dark on light) and printouts use it too */
+  --paper: #fdfcf8;
+  --ink: #1a1923;
+  --ink-muted: #585664;        /* secondary text on paper */
+  --stamp: #b3243a;            /* rubber stamps on the sheet: expired, on hold */
 
   /* Typography */
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-document: "Source Serif 4", Georgia, "Times New Roman", serif; /* paper documents */
 }
