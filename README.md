@@ -16,8 +16,8 @@ Every event stays on-chain as its own immutable record, so a regulator or
 auditor can verify the full history without trusting anyone.
 
 > Status: early build for the Colosseum hackathon (October 2026). The
-> on-chain program and the Python application run end to end on a local
-> validator; the devnet deployment and the web demo are in progress.
+> on-chain program, the Python application and the web demo run end to end
+> on a local validator; the devnet deployment is next.
 
 ## How it works
 
@@ -163,6 +163,12 @@ accounts (one per role) and fills the form for you. A suggested tour:
 
 The demo cast and samples are illustrative and will evolve with the project.
 
+**Demo mode holds the participants' keys on the server** so that one browser
+can play every role; the footer says so. The program itself is unchanged by
+this: every action still needs the participant's signature, and the operator
+cannot sign for anyone. In production each participant signs with their own
+wallet.
+
 ### Devnet environment (public demo)
 
 Devnet SOL is free but rationed: use https://faucet.solana.com (connecting
@@ -219,7 +225,7 @@ just test             # program tests (LiteSVM) + app tests
 |---|---|---|
 | `program/programs/rxtrail/tests` | the compiled program on LiteSVM | every on-chain guarantee, plus a property test: random sequences of requests from several pharmacies never dispense past the grant |
 | `app/tests/unit` | in-memory fakes | rules mirror, document hashing, IDL codec, error mapping, use cases |
-| `app/tests/integration` | Postgres | off-chain store, database permissions |
+| `app/tests/integration` | Postgres | off-chain store, database permissions, the web pages (who sees and does what) with the chain faked |
 | `app/tests/localnet` | the program deployed on the local validator | the full flow; refusals come from the chain itself; **five pharmacies racing for the same prescription at the same time** — exactly the granted quantity lands |
 
 App tests run in the `localnet` environment against its own `_test`
@@ -228,9 +234,13 @@ there (`just deploy localnet`). CI runs everything on each push.
 
 ## Roadmap
 
-- Python client (hexagonal: domain, ports, adapters) and devnet deployment
-- Demo web app: prescriber issues, pharmacy dispenses, auditor verifies
-- Cancellation and corrections (reversal records)
+- Devnet deployment
+- Cancelling a prescription before any dispensation, and stopping the
+  remainder of a partly dispensed one
+- Corrections to a dispensation (reversal records)
+- Wallet sign-in (each participant signs in their own wallet)
+- An indexer of the program's events, so lists and dashboards stop reading
+  the chain on every page view
 - Upgrade authority under a multisig of authorities; verifiable builds
 
 ## Team

@@ -464,6 +464,7 @@ STYLE_TOKENS = [
     ("brand-accent", "text-brand-accent · bg-brand-accent/10", "success, live"),
     ("danger", "text-danger · bg-danger/10", "refusals, suspension"),
     ("surface", "bg-surface", "page background"),
+    ("surface-raised", "", "opaque: open select menus, autofill"),
     ("on-brand", "", "text on brand colours"),
     ("placeholder", "", "hint text in empty fields"),
 ]

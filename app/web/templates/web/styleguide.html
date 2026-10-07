@@ -56,6 +56,17 @@
       {% include "web/_field.html" with label="Text" name="sample" placeholder="Placeholder" %}
       {% include "web/_password.html" with name="sample-password" %}
       <input class="rx-input font-mono text-sm" placeholder="Monospace, for ids">
+      <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Select (open it: the menu uses --surface-raised)
+        <span class="relative mt-1.5 block">
+          <select class="rx-input normal-case">
+            <option>Any status</option><option>Active</option><option>Completed</option><option>Expired</option>
+          </select>
+          <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+        </span>
+      </label>
+      <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Date
+        <input type="date" class="rx-input mt-1.5 normal-case">
+      </label>
     </div>
   </div>
 
@@ -64,7 +75,6 @@
     <div class="flex flex-wrap gap-2">
       <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><span class="rx-live relative h-1.5 w-1.5 rounded-full bg-brand-accent"></span> Active</span>
       <span class="flex items-center gap-1.5 rounded-full bg-danger/10 px-3 py-1 text-xs text-danger"><i data-lucide="pause" class="h-3 w-3"></i> Suspended</span>
-      <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400">Fully dispensed</span>
       <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><i data-lucide="circle-dot" class="h-3 w-3"></i> 10 left</span>
       <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="check" class="h-3 w-3"></i> Completed</span>
       <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="clock-alert" class="h-3 w-3"></i> Expired · 4 unused</span>

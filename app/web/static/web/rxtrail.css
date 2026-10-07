@@ -119,8 +119,24 @@ input[type="date"].rx-input:not([data-filled])::-webkit-datetime-edit {
   font-weight: 400;
 }
 
-/* Native controls (select menus, date pickers) follow the dark surface. */
-select.rx-input, input[type="date"].rx-input { color-scheme: dark; }
+/* The browser's own widgets, for every control (with or without .rx-input).
+   An open select menu is drawn outside the page with the select's colours;
+   .rx-input's 4% white has nothing behind it there and comes out white,
+   under white text. Options always get the opaque --surface-raised. */
+select option,
+select optgroup {
+  background-color: var(--surface-raised);
+  color: var(--text);
+}
+/* Autofill: keep our text colour and defer the browser's pastel fill. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  transition: background-color 600000s 0s;
+}
+
 /* The chevron is a Lucide icon next to the select (see prescriber.html). */
 select.rx-input { appearance: none; padding-right: 2.25rem; cursor: pointer; }
 

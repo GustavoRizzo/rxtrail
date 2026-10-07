@@ -8,9 +8,21 @@
  *
  * One exception: the favicon in templates/web/base.html is an inline SVG
  * with its own two colours (a browser icon cannot read page styles).
+ *
+ * Two rules keep the browser's own widgets readable (an open select menu,
+ * a date picker, autofill, scrollbars), because the browser draws them
+ * outside the page:
+ * - color-scheme says whether the identity is dark or light, so the browser
+ *   picks matching defaults for everything it draws itself;
+ * - the surfaces those widgets use are opaque: an open menu has nothing
+ *   behind it to blend a translucent colour with, and comes out white.
+ * tests/unit/test_design_system.py checks both, plus the contrast of every
+ * text token on every surface.
  */
 
 :root {
+  color-scheme: dark;          /* the browser's own widgets match the theme */
+
   /* Brand */
   --brand-primary: #9945ff;    /* main actions, highlights */
   --brand-secondary: #38bdf8;  /* links, informational accents */
@@ -23,7 +35,8 @@
   /* Surfaces */
   --surface: #06060c;          /* page background */
   --surface-card: rgb(13 13 24 / 0.92);
-  --on-brand: #06060c;         /* text on top of brand colours */
+  --surface-raised: #14141f;   /* OPAQUE: what the browser draws itself (open select menus, autofill) */
+  --on-brand: #000000;         /* text on top of brand colours */
   --text: #f1f5f9;             /* text inside form fields */
   --placeholder: rgb(148 163 184 / 0.38); /* hint text: clearly fainter than real values */
 
