@@ -28,7 +28,8 @@ asyncio_mode = "auto"
 DJANGO_SETTINGS_MODULE = "config.settings"
 # The test database is pre-created by docker/postgres/init (the app user may
 # not create databases), so it is reused rather than created per run.
-addopts = "--reuse-db"
+addopts = "--reuse-db -m 'not stress'"
+markers = ["stress: slow load/concurrency tests; run with `just test-stress`"]
 
 [tool.uv]
 # Python itself is installed and managed by uv, never taken from the system.

@@ -122,3 +122,19 @@ def test_every_outcome_error_is_a_domain_error():
         NotRegisteredError,
     ):
         assert issubclass(error, RxTrailError)
+
+
+@pytest.mark.parametrize(
+    ("message", "taken"),
+    [
+        ("Allocate: account Address { ... } already in use", True),
+        ("failed on-chain: {'InstructionError': [0, {'Custom': 2006}]}", True),
+        ("custom program error: 0x7d6", True),
+        ("custom program error: 0x1778", False),  # QuantityExceedsRemaining: real limit
+        ("Blockhash not found", False),
+    ],
+)
+def test_only_a_taken_dispensation_slot_is_retried(message, taken):
+    from solana_client.ledger import _slot_taken
+
+    assert _slot_taken(TransactionRejectedError(message)) is taken

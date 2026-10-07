@@ -18,12 +18,14 @@ class DjangoDocumentVault:
         self,
         prescription_id: bytes,
         patient_id: bytes,
+        prescriber: str,
         document: PrescriptionDocument,
         salt: bytes,
     ) -> None:
         patient = await Patient.objects.aget(patient_id=patient_id.hex())
         await PrescriptionRecord.objects.acreate(
             prescription_id=prescription_id.hex(),
+            prescriber=prescriber,
             patient=patient,
             document={field: getattr(document, field) for field in PrescriptionDocument.__slots__},
             salt=salt.hex(),

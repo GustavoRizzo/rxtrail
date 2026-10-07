@@ -1,0 +1,29 @@
+{% extends "web/base.html" %}
+{% load rxtrail %}
+{% block title %}Auditor{% endblock %}
+{% block content %}
+<div class="mb-8 rx-reveal">
+  <p class="text-sm text-slate-500">Audit</p>
+  <h1 class="text-3xl font-bold text-white">{{ user.participant.display_name }}</h1>
+  <p class="mt-1 text-slate-400">Every prescription can be rebuilt and checked from the chain alone. You see the verdict, never the patient's data.</p>
+</div>
+<div class="rx-reveal">{% include "web/_verify_box.html" %}</div>
+<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_24rem]">
+  <section class="rx-reveal" style="--i:1">
+    <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white"><i data-lucide="list-checks" class="h-5 w-5 text-[#14f195]"></i> Recent prescriptions</h2>
+    <div class="grid gap-3">
+      {% for r in records %}
+        <a href="{% url 'web:prescription' r.prescription_id %}" class="rx-card rx-card-hover rx-reveal flex items-center gap-4 p-4" style="--i: {{ forloop.counter }}">
+          <i data-lucide="file-check-2" class="h-5 w-5 text-[#9945ff]"></i>
+          <span class="font-mono text-sm text-slate-300">{{ r.prescription_id|short:10 }}</span>
+          <span class="ml-auto text-xs text-slate-500">{{ r.created_at|timesince }} ago</span>
+          <i data-lucide="chevron-right" class="h-4 w-4 text-slate-600"></i>
+        </a>
+      {% empty %}
+        <div class="rx-card p-8 text-center text-slate-500">No prescriptions yet.</div>
+      {% endfor %}
+    </div>
+  </section>
+  <div class="rx-reveal" style="--i:2">{% include "web/_activity.html" with title="Activity across the network" show_actor=True %}</div>
+</div>
+{% endblock %}

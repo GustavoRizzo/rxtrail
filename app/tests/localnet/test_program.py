@@ -114,6 +114,7 @@ async def test_suspending_a_prescriber_freezes_their_prescriptions(app, ledger, 
     assert (await ledger.prescription(issued.prescription_id)).quantity_dispensed == 15
 
 
+@pytest.mark.stress
 async def test_five_pharmacies_racing_never_exceed_the_grant(app, ledger, fresh):
     """The core promise under real concurrency: 5 pharmacies ask for 10 each,
     at the same time, against a prescription of 30."""

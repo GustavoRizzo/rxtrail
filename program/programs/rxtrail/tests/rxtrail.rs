@@ -694,7 +694,9 @@ fn the_largest_grant_never_overflows() {
 use proptest::prelude::*;
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(64))]
+    // Case count comes from PROPTEST_CASES: few in everyday runs, many in
+    // `just test-stress`.
+    #![proptest_config(ProptestConfig::default())]
 
     /// Whatever pharmacies ask for, in whatever order: the program never
     /// dispenses past the grant, every request that fits is accepted, and the

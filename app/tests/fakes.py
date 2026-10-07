@@ -108,6 +108,10 @@ class FakeLedger:
     async def prescription(self, prescription_id):
         return self.prescriptions.get(prescription_id)
 
+    async def participant_status(self, role, participant):
+        enabled = self.prescribers if role == "prescriber" else self.dispensers
+        return "active" if participant in enabled else None
+
     async def dispensations(self, prescription):
         return list(self.dispensed.get(prescription.id, []))
 
@@ -116,7 +120,7 @@ class FakeVault:
     def __init__(self):
         self.documents: dict[bytes, tuple[bytes, PrescriptionDocument, bytes]] = {}
 
-    async def store(self, prescription_id, patient_id, document, salt):
+    async def store(self, prescription_id, patient_id, prescriber, document, salt):
         self.documents[prescription_id] = (patient_id, document, salt)
 
     async def fetch(self, prescription_id):

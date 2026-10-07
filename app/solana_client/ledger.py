@@ -211,7 +211,7 @@ class SolanaLedger:
             try:
                 return await self._dispense_once(dispenser, prescription_id, quantity)
             except TransactionRejectedError as exc:
-                if "already in use" not in str(exc) or attempt == DISPENSE_ATTEMPTS - 1:
+                if not _slot_taken(exc) or attempt == DISPENSE_ATTEMPTS - 1:
                     raise
                 logger.info("dispensation slot taken by a concurrent pharmacy; retrying")
         raise AssertionError("unreachable")
@@ -269,6 +269,17 @@ class SolanaLedger:
             expires_at=_timestamp(raw["expires_at"]),
             status=PrescriptionStatus(raw["status"].lower()),
         )
+
+    async def participant_status(self, role: str, participant: str) -> ParticipantStatus | None:
+        key = self._keys.keypair(participant).pubkey()
+        find, account = {
+            "prescriber": (pdas.prescriber, "Prescriber"),
+            "dispenser": (pdas.dispenser, "Dispenser"),
+        }[role]
+        data = await self._account(find(self.program_id, key))
+        if data is None:
+            return None
+        return ParticipantStatus(self._idl.decode_account(account, data)["status"].lower())
 
     async def dispensations(self, prescription: Prescription) -> Sequence[Dispensation]:
         """Every dispensation, fetched at its derived address: no index needed."""
@@ -398,3 +409,12 @@ class SolanaLedger:
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 8)
         raise AssertionError("unreachable")
+
+
+# A concurrent dispensation took the slot: the account exists, or the
+# prescription's counter moved past the index the address was derived from.
+_SLOT_TAKEN = re.compile(r"already in use|Custom\W{0,4}2006|0x7d6", re.IGNORECASE)
+
+
+def _slot_taken(error: TransactionRejectedError) -> bool:
+    return bool(_SLOT_TAKEN.search(str(error)))

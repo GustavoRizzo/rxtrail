@@ -1,0 +1,129 @@
+/* RxTrail visual layer on top of Tailwind: gradient borders, glass cards,
+   and a few purposeful animations. Respects prefers-reduced-motion. */
+
+:root {
+  --rx-violet: #9945ff;
+  --rx-mint: #14f195;
+  --rx-sky: #38bdf8;
+  --rx-gradient: linear-gradient(120deg, var(--rx-violet), var(--rx-sky) 50%, var(--rx-mint));
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #06060c;
+}
+
+/* Slow-moving glow behind everything. */
+.rx-backdrop::before,
+.rx-backdrop::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  width: 42rem;
+  height: 42rem;
+  border-radius: 9999px;
+  filter: blur(120px);
+  opacity: 0.22;
+  animation: rx-drift 24s ease-in-out infinite alternate;
+}
+.rx-backdrop::before { background: var(--rx-violet); top: -14rem; left: -10rem; }
+.rx-backdrop::after { background: var(--rx-mint); bottom: -16rem; right: -12rem; animation-delay: -12s; }
+
+@keyframes rx-drift {
+  to { transform: translate(6rem, 4rem) scale(1.15); }
+}
+
+/* Gradient border: the gradient paints the border box, the card the padding box. */
+.rx-card {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(rgb(13 13 24 / 0.92), rgb(13 13 24 / 0.92)) padding-box,
+    linear-gradient(140deg, rgb(153 69 255 / 0.55), rgb(56 189 248 / 0.25), rgb(20 241 149 / 0.5)) border-box;
+  backdrop-filter: blur(12px);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.rx-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 50px -18px rgb(153 69 255 / 0.55);
+}
+
+.rx-gradient-text {
+  background: var(--rx-gradient);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rx-shine 6s linear infinite;
+}
+@keyframes rx-shine {
+  to { background-position: 200% center; }
+}
+
+.rx-button {
+  background: var(--rx-gradient);
+  background-size: 200% auto;
+  color: #06060c;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: background-position 0.5s ease, transform 0.15s ease, box-shadow 0.25s ease;
+}
+.rx-button:hover { background-position: right center; box-shadow: 0 8px 30px -8px rgb(20 241 149 / 0.6); }
+.rx-button:active { transform: scale(0.97); }
+.rx-button:disabled { opacity: 0.6; cursor: wait; }
+
+.rx-input {
+  width: 100%;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  color: #f1f5f9;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.rx-input:focus {
+  outline: none;
+  border-color: rgb(153 69 255 / 0.7);
+  box-shadow: 0 0 0 4px rgb(153 69 255 / 0.15);
+}
+
+/* Progress bar with a moving sheen while something remains. */
+.rx-progress { height: 0.55rem; border-radius: 9999px; background: rgb(255 255 255 / 0.07); overflow: hidden; }
+.rx-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--rx-gradient);
+  background-size: 200% auto;
+  animation: rx-shine 3s linear infinite;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Entrances: cards rise in, staggered by --i. */
+.rx-reveal { animation: rx-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes rx-rise {
+  from { opacity: 0; transform: translateY(14px); }
+}
+
+.rx-live { position: relative; }
+.rx-live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: rx-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes rx-ping {
+  75%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
+.rx-toast { animation: rx-toast-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes rx-toast-in {
+  from { opacity: 0; transform: translateX(24px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

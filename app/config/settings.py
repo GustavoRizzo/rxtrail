@@ -42,6 +42,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "web.context_processors.rxtrail",
             ],
         },
     },
@@ -68,6 +69,15 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
+
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/home/"
+# Flash messages in a signed cookie: no database access while rendering.
+MESSAGE_STORAGE = "django.contrib.messages.storage.cookie.CookieStorage"
+
+# Demo mode: the login page lists the demo accounts (see `manage.py demo_data`).
+RXTRAIL_DEMO_MODE = os.environ.get("RXTRAIL_DEMO_MODE", "1") == "1"
+RXTRAIL_DEMO_PASSWORD = "rxtrail-demo"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Solana ------------------------------------------------------------------
@@ -80,6 +90,8 @@ SOLANA_ENDPOINTS = {
 SOLANA_NETWORK = os.environ.get("SOLANA_NETWORK", "localnet")
 SOLANA_RPC_URL = os.environ.get("SOLANA_RPC_URL") or SOLANA_ENDPOINTS[SOLANA_NETWORK][0]
 SOLANA_WS_URL = os.environ.get("SOLANA_WS_URL") or SOLANA_ENDPOINTS[SOLANA_NETWORK][1]
+# The local validator as the *browser* reaches it, for explorer links.
+SOLANA_EXPLORER_LOCAL_RPC = f"http://localhost:{os.environ.get('LOCALNET_RPC_PORT', '59899')}"
 
 # Keypair files, one per named participant (mounted from the repo's .keys/,
 # which is not versioned). The operator pays every fee and rent deposit.

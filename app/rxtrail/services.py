@@ -96,7 +96,7 @@ class RxTrail:
         # Off-chain first: if the transaction then fails, an orphan document is
         # harmless; an on-chain hash whose document was lost could never be
         # verified again.
-        await self._vault.store(prescription_id, patient_id, document, salt)
+        await self._vault.store(prescription_id, patient_id, prescriber, document, salt)
         receipt = await self._ledger.issue_prescription(
             prescriber, prescription_id, patient_id, digest, document.quantity, expires_at
         )

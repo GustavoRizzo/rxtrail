@@ -1,0 +1,45 @@
+{% extends "web/base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[22rem_1fr]" x-data="{ username: '', password: '' }">
+  <form method="post" class="rx-card rx-reveal h-fit p-7" x-data="{ busy: false }" @submit="busy = true">
+    {% csrf_token %}
+    <h1 class="text-2xl font-bold text-white">Sign in</h1>
+    <p class="mt-1 text-sm text-slate-400">Each account acts with its own on-chain key.</p>
+    {% if form.errors %}<p class="mt-4 flex items-center gap-2 text-sm text-rose-400"><i data-lucide="circle-alert" class="h-4 w-4"></i> Wrong username or password.</p>{% endif %}
+    <label class="mt-6 block text-xs font-medium uppercase tracking-wide text-slate-500">Username
+      <input name="username" x-model="username" autocomplete="username" required class="rx-input mt-1.5 normal-case">
+    </label>
+    <label class="mt-4 block text-xs font-medium uppercase tracking-wide text-slate-500">Password
+      <input type="password" name="password" x-model="password" autocomplete="current-password" required class="rx-input mt-1.5">
+    </label>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="rx-button mt-6 flex w-full items-center justify-center gap-2 py-3" :disabled="busy">
+      <i data-lucide="log-in" class="h-4 w-4"></i><span x-text="busy ? 'Signing in…' : 'Sign in'">Sign in</span>
+    </button>
+  </form>
+
+  {% if demo_accounts %}
+  <section class="rx-reveal" style="--i:1">
+    <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-400"><i data-lucide="users" class="h-4 w-4"></i> Demo accounts</h2>
+    <p class="mt-1 text-sm text-slate-500">Pick one to fill the form. Every demo password is <code class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-slate-300">{{ demo_password }}</code>.</p>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      {% for p in demo_accounts %}
+        <button type="button" @click="username = '{{ p.user.username }}'; password = '{{ demo_password }}'"
+                class="rx-card rx-card-hover rx-reveal flex items-center gap-3 p-4 text-left" style="--i: {{ forloop.counter }}">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5">
+            <i data-lucide="{% if p.role == 'prescriber' %}stethoscope{% elif p.role == 'dispenser' %}pill{% elif p.role == 'professional_authority' %}landmark{% elif p.role == 'health_authority' %}building-2{% else %}search-check{% endif %}" class="h-5 w-5 text-[#14f195]"></i>
+          </span>
+          <span>
+            <span class="block font-medium text-slate-100">{{ p.display_name }}</span>
+            <span class="block text-xs text-slate-500">{{ p.get_role_display }} · {{ p.user.username }}</span>
+          </span>
+        </button>
+      {% empty %}
+        <p class="text-sm text-slate-500">No demo data yet: run <code class="font-mono">just rx localnet demo</code>.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -23,8 +23,8 @@ auditor can verify the full history without trusting anyone.
 
 | Actor | Can |
 |---|---|
-| Professional authority (e.g. a medical council) | enable prescribers |
-| Health authority (e.g. a health regulator) | enable dispensers |
+| Professional authority (e.g. a medical council) | enable, suspend and reinstate prescribers |
+| Health authority (e.g. a health regulator) | enable, suspend and reinstate dispensers |
 | Prescriber | issue a prescription: quantity, expiry, document hash |
 | Dispenser (pharmacy) | dispense against a prescription, never past what remains |
 | Anyone | read and verify the full history |
@@ -35,6 +35,10 @@ auditor can verify the full history without trusting anyone.
 - **No personal data on-chain.** Prescriptions and patients are identified by
   random ids. The full prescription document stays off-chain; only its salted
   hash is recorded, proving it was not altered.
+- **Suspension takes effect everywhere at once.** A suspended prescriber can
+  no longer issue, and none of their prescriptions can be dispensed — the
+  answer to a leaked key or a revoked licence. Reinstating restores both;
+  nothing already recorded changes.
 - **Append-only history.** A prescription keeps two counters (dispensed,
   count); each dispensation is a separate account that no instruction can
   modify.
@@ -44,8 +48,8 @@ auditor can verify the full history without trusting anyone.
 | Account | Address (PDA seeds) | Changes? |
 |---|---|---|
 | `Config` | `["config"]` | never (set once) |
-| `Prescriber` | `["prescriber", key]` | status only |
-| `Dispenser` | `["dispenser", key]` | status only |
+| `Prescriber` | `["prescriber", key]` | status only (by its authority) |
+| `Dispenser` | `["dispenser", key]` | status only (by its authority) |
 | `Prescription` | `["prescription", id]` | counters only, via `dispense` |
 | `Dispensation` | `["dispensation", prescription, index]` | never |
 
@@ -130,10 +134,34 @@ just rx localnet issue dr-ana --patient-document 123 --patient-name "Maria Silva
 just rx localnet dispense pharmacy-one <prescription id> 20
 just rx localnet dispense pharmacy-one <prescription id> 15   # refused: 10 remain
 just rx localnet audit <prescription id>
+just rx localnet suspend-prescriber dr-ana      # her prescriptions stop dispensing
+just rx localnet reinstate-prescriber dr-ana
 ```
 
 `just reset-localnet` wipes the local chain **and** its database together,
 then redeploys and sets up again.
+
+### Try it in the browser
+
+```bash
+just rx localnet demo       # demo logins, enabled on-chain, plus sample prescriptions
+```
+
+Open http://localhost:8142 and sign in: the login page lists the demo
+accounts (one per role) and fills the form for you. A suggested tour:
+
+1. **Prescriber** (e.g. Dr. Ana Souza) — issue a prescription; you land on
+   its audit page. Copy its id.
+2. **Pharmacy** (e.g. Central Pharmacy) — look the id up, dispense part of
+   it, then try to dispense more than remains: the chain refuses.
+3. **Professional authority** (Regional Medical Council) — suspend the
+   prescriber, then try dispensing again as the pharmacy: refused
+   everywhere. Reinstate.
+4. **Auditor** (Health Inspector) — open any prescription: the verdict and
+   the on-chain history, without the patient's data. Every key and record
+   links to the Solana explorer.
+
+The demo cast and samples are illustrative and will evolve with the project.
 
 ### Devnet environment (public demo)
 
@@ -189,10 +217,10 @@ just test             # program tests (LiteSVM) + app tests
 
 | Suite | Runs against | Covers |
 |---|---|---|
-| `program/programs/rxtrail/tests` | the compiled program on LiteSVM | every on-chain guarantee |
+| `program/programs/rxtrail/tests` | the compiled program on LiteSVM | every on-chain guarantee, plus a property test: random sequences of requests from several pharmacies never dispense past the grant |
 | `app/tests/unit` | in-memory fakes | rules mirror, document hashing, IDL codec, error mapping, use cases |
 | `app/tests/integration` | Postgres | off-chain store, database permissions |
-| `app/tests/localnet` | the program deployed on the local validator | the full flow; refusals come from the chain itself |
+| `app/tests/localnet` | the program deployed on the local validator | the full flow; refusals come from the chain itself; **five pharmacies racing for the same prescription at the same time** — exactly the granted quantity lands |
 
 App tests run in the `localnet` environment against its own `_test`
 database. The localnet suite is skipped unless the program is deployed
@@ -202,5 +230,5 @@ there (`just deploy localnet`). CI runs everything on each push.
 
 - Python client (hexagonal: domain, ports, adapters) and devnet deployment
 - Demo web app: prescriber issues, pharmacy dispenses, auditor verifies
-- Cancellation, corrections (reversal records) and suspension cascades
+- Cancellation and corrections (reversal records)
 - Upgrade authority under a multisig of authorities; verifiable builds

@@ -56,6 +56,10 @@ class PrescriptionLedger(Protocol):
 
     async def prescription(self, prescription_id: bytes) -> Prescription | None: ...
 
+    async def participant_status(self, role: str, participant: str) -> ParticipantStatus | None:
+        """On-chain status of a prescriber or dispenser; None if never enabled."""
+        ...
+
     async def dispensations(self, prescription: Prescription) -> Sequence[Dispensation]: ...
 
 
@@ -66,6 +70,7 @@ class DocumentVault(Protocol):
         self,
         prescription_id: bytes,
         patient_id: bytes,
+        prescriber: str,
         document: PrescriptionDocument,
         salt: bytes,
     ) -> None: ...

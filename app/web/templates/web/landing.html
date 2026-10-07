@@ -1,0 +1,41 @@
+{% extends "web/base.html" %}
+{% block title %}Tamper-proof prescriptions{% endblock %}
+{% block content %}
+<section class="rx-reveal mx-auto max-w-3xl pb-14 pt-8 text-center">
+  <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-slate-400">
+    <i data-lucide="sparkles" class="h-3.5 w-3.5 text-[#14f195]"></i> Controlled prescriptions, on Solana
+  </span>
+  <h1 class="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-6xl">
+    Every pill accounted for.<br><span class="rx-gradient-text">Every record provable.</span>
+  </h1>
+  <p class="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
+    RxTrail puts the dispensing limit of controlled medication on a shared ledger no single party controls.
+    A prescription can never be filled past what was granted — not even by two pharmacies at the same time —
+    and anyone can audit its full history.
+  </p>
+  <div class="mt-8 flex flex-wrap justify-center gap-3">
+    <a href="{% url 'web:login' %}" class="rx-button flex items-center gap-2 px-6 py-3"><i data-lucide="log-in" class="h-4 w-4"></i> Try the demo</a>
+    <a href="https://github.com/GustavoRizzo/rxtrail" target="_blank" class="flex items-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-slate-300 transition hover:bg-white/5"><i data-lucide="code-xml" class="h-4 w-4"></i> Source code</a>
+  </div>
+</section>
+
+<section class="grid gap-5 sm:grid-cols-3">
+  <div class="rx-card rx-card-hover rx-reveal p-6" style="--i:1">
+    <span class="grid h-11 w-11 place-items-center rounded-xl bg-[#14f195]/10"><i data-lucide="lock-keyhole" class="h-5 w-5 text-[#14f195]"></i></span>
+    <h3 class="mt-4 font-semibold text-white">Limits no one can bypass</h3>
+    <p class="mt-2 text-sm text-slate-400">The rule runs in an on-chain program. The total dispensed can never exceed the quantity granted.</p>
+  </div>
+  <div class="rx-card rx-card-hover rx-reveal p-6" style="--i:2">
+    <span class="grid h-11 w-11 place-items-center rounded-xl bg-[#9945ff]/15"><i data-lucide="fingerprint" class="h-5 w-5 text-[#9945ff]"></i></span>
+    <h3 class="mt-4 font-semibold text-white">Signed by who acted</h3>
+    <p class="mt-2 text-sm text-slate-400">Prescribers and pharmacies sign with their own keys. The operator pays the fees but cannot act for anyone.</p>
+  </div>
+  <div class="rx-card rx-card-hover rx-reveal p-6" style="--i:3">
+    <span class="grid h-11 w-11 place-items-center rounded-xl bg-[#38bdf8]/10"><i data-lucide="eye-off" class="h-5 w-5 text-[#38bdf8]"></i></span>
+    <h3 class="mt-4 font-semibold text-white">Auditable, yet private</h3>
+    <p class="mt-2 text-sm text-slate-400">Only random ids and a document hash go on-chain. Patients' data stays off-chain.</p>
+  </div>
+</section>
+
+<section class="mt-10 rx-reveal" style="--i:4">{% include "web/_verify_box.html" %}</section>
+{% endblock %}

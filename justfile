@@ -108,7 +108,7 @@ build:
 
 # Program tests on LiteSVM (in-process Solana VM, no validator needed).
 test-program: build
-    just dc localnet --profile tools run --rm chain cargo test --workspace
+    just dc localnet --profile tools run --rm -e PROPTEST_CASES=16 chain cargo test --workspace
 
 # Format the Rust code in place.
 fmt-program:
@@ -132,5 +132,10 @@ lint-app:
 fmt-app:
     cd app && uv run ruff format . && uv run ruff check --fix .
 
-# Every test: program (LiteSVM) and app.
+# Every everyday test: program (LiteSVM) and app. Fast; stress tests excluded.
 test: test-program test-app
+
+# Load and concurrency tests (slow): 256 property cases, pharmacies racing.
+test-stress: build
+    just dc localnet --profile tools run --rm -e PROPTEST_CASES=256 chain cargo test --workspace
+    @docker compose -p rxtrail-localnet --env-file envs/localnet.env exec web sh -c 'POSTGRES_DB="${POSTGRES_DB}_test" exec pytest -m stress -v'

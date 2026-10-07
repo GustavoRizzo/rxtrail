@@ -1,0 +1,72 @@
+{% extends "web/base.html" %}
+{% load rxtrail %}
+{% block title %}Prescriber{% endblock %}
+{% block content %}
+<div class="mb-8 rx-reveal">
+  <p class="text-sm text-slate-500">Prescriber dashboard</p>
+  <h1 class="text-3xl font-bold text-white">Hello, {{ user.participant.display_name }}</h1>
+</div>
+
+<div class="grid gap-6 lg:grid-cols-[24rem_1fr]">
+  <form method="post" class="rx-card rx-reveal h-fit p-6" x-data="{ busy: false }" @submit="busy = true">
+    {% csrf_token %}
+    <h2 class="flex items-center gap-2 text-lg font-semibold text-white"><i data-lucide="file-plus-2" class="h-5 w-5 text-[#14f195]"></i> New prescription</h2>
+    <p class="mt-1 text-sm text-slate-500">You sign it with your own key. The document stays private; only its hash goes on-chain.</p>
+    {% if form.errors %}<p class="mt-3 text-sm text-rose-400">Please check the highlighted fields.</p>{% endif %}
+    <div class="mt-5 grid gap-4">
+      {% include "web/_field.html" with label="Patient name" name="patient_name" value=form.patient_name.value required=True %}
+      {% include "web/_field.html" with label="Patient ID document" name="patient_document" value=form.patient_document.value required=True placeholder="e.g. national id number" %}
+      {% include "web/_field.html" with label="Medication" name="medication" value=form.medication.value required=True placeholder="e.g. Clonazepam 2mg" %}
+      {% include "web/_field.html" with label="Dosage" name="dosage" value=form.dosage.value required=True placeholder="e.g. 1 tablet at night" %}
+      {% include "web/_field.html" with label="Instructions (optional)" name="instructions" value=form.instructions.value %}
+      <div class="grid grid-cols-2 gap-4">
+        {% include "web/_field.html" with label="Quantity" name="quantity" type="number" min="1" value=form.quantity.value required=True %}
+        {% include "web/_field.html" with label="Valid for (days)" name="valid_days" type="number" min="1" value=form.valid_days.value|default:30 required=True %}
+      </div>
+    </div>
+    <button class="rx-button mt-6 flex w-full items-center justify-center gap-2 py-3" :disabled="busy">
+      <i data-lucide="pen-line" class="h-4 w-4" x-show="!busy"></i>
+      <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
+      <span x-text="busy ? 'Signing and sending…' : 'Sign and issue'">Sign and issue</span>
+    </button>
+  </form>
+
+  <section class="rx-reveal" style="--i:1">
+    <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white"><i data-lucide="files" class="h-5 w-5 text-[#9945ff]"></i> Your prescriptions</h2>
+    <div class="grid gap-4">
+      {% for record, rx in rows %}
+        <a href="{% url 'web:prescription' record.prescription_id %}" class="rx-card rx-card-hover rx-reveal block p-5" style="--i: {{ forloop.counter }}">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="font-semibold text-slate-100">{{ record.document.medication }}</p>
+              <p class="text-sm text-slate-500">{{ record.patient.name }} · {{ record.document.dosage }}</p>
+            </div>
+            {% if rx %}
+              {% if rx.remaining == 0 %}
+                <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400">Fully dispensed</span>
+              {% else %}
+                <span class="flex items-center gap-1.5 rounded-full bg-[#14f195]/10 px-3 py-1 text-xs text-[#14f195]"><i data-lucide="circle-dot" class="h-3 w-3"></i> {{ rx.remaining }} left</span>
+              {% endif %}
+            {% else %}
+              <span class="rounded-full bg-rose-500/10 px-3 py-1 text-xs text-rose-300">Not on this chain</span>
+            {% endif %}
+          </div>
+          {% if rx %}
+            <div class="rx-progress mt-4"><span style="width: {% widthratio rx.quantity_dispensed rx.quantity_granted 100 %}%"></span></div>
+            <p class="mt-2 flex flex-wrap gap-x-4 text-xs text-slate-500">
+              <span>{{ rx.quantity_dispensed }} of {{ rx.quantity_granted }} dispensed</span>
+              <span>expires {{ rx.expires_at|date:"M j, Y" }}</span>
+              <span class="font-mono">{{ record.prescription_id|short:6 }}</span>
+            </p>
+          {% endif %}
+        </a>
+      {% empty %}
+        <div class="rx-card p-10 text-center text-slate-500">
+          <i data-lucide="inbox" class="mx-auto h-8 w-8"></i>
+          <p class="mt-3">No prescriptions yet. Issue your first one.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

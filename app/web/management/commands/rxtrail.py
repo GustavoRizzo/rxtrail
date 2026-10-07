@@ -23,6 +23,7 @@ class Command(BaseCommand):
         sub = parser.add_subparsers(dest="action", required=True)
 
         sub.add_parser("setup", help="Create keys, fund the operator (localnet), initialize.")
+        sub.add_parser("demo", help="Setup, then demo logins and sample prescriptions.")
 
         for role in ("prescriber", "dispenser"):
             enable = sub.add_parser(f"enable-{role}", help=f"The authority enables a {role}.")
@@ -84,6 +85,18 @@ class Command(BaseCommand):
                 receipt = await chain.initialize(*AUTHORITIES)
                 self.stdout.write(f"  initialized: {receipt.signature}")
         self.stdout.write(self.style.SUCCESS("ready."))
+
+    async def _demo(self, **options):
+        from web.demo import seed
+
+        await self._setup(**options)
+        self.stdout.write("demo data:")
+        await seed(self.stdout.write)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"demo ready. Every demo password is {settings.RXTRAIL_DEMO_PASSWORD!r}."
+            )
+        )
 
     async def _enable(self, role: str, authority: str, name: str):
         self._key(name)
