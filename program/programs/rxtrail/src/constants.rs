@@ -6,3 +6,5 @@ pub const PRESCRIBER_SEED: &[u8] = b"prescriber";
 pub const DISPENSER_SEED: &[u8] = b"dispenser";
 pub const PRESCRIPTION_SEED: &[u8] = b"prescription";
 pub const DISPENSATION_SEED: &[u8] = b"dispensation";
+pub const MEDICATION_SEED: &[u8] = b"medication";
+pub const PRODUCT_SEED: &[u8] = b"product";

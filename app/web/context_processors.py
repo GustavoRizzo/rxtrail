@@ -5,6 +5,7 @@ ROLE_ICONS = {
     "dispenser": "pill",
     "professional_authority": "landmark",
     "health_authority": "building-2",
+    "catalog_authority": "library-big",
     "auditor": "search-check",
 }
 

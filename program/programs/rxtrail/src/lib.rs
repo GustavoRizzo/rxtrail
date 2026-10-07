@@ -1,7 +1,8 @@
 //! RxTrail: tamper-proof dispensing limits for controlled prescriptions.
 //!
-//! Authorities enable prescribers and dispensers; prescribers issue
-//! prescriptions with a granted quantity; dispensers record each hand-out.
+//! Authorities enable prescribers and dispensers and keep the medication
+//! catalog; prescribers issue prescriptions for a catalog medication with a
+//! granted quantity; dispensers record each hand-out and the product given.
 //! The program guarantees the total dispensed never exceeds the quantity
 //! granted, and every event stays on-chain as its own immutable account.
 //!
@@ -30,8 +31,14 @@ pub mod rxtrail {
         ctx: Context<Initialize>,
         professional_authority: Pubkey,
         health_authority: Pubkey,
+        catalog_authority: Pubkey,
     ) -> Result<()> {
-        instructions::initialize::handle_initialize(ctx, professional_authority, health_authority)
+        instructions::initialize::handle_initialize(
+            ctx,
+            professional_authority,
+            health_authority,
+            catalog_authority,
+        )
     }
 
     pub fn register_prescriber(
@@ -48,10 +55,38 @@ pub mod rxtrail {
         instructions::register_dispenser::handle_register_dispenser(ctx, dispenser_key)
     }
 
+    pub fn register_medication(
+        ctx: Context<RegisterMedication>,
+        id: [u8; 32],
+        identity_hash: [u8; 32],
+    ) -> Result<()> {
+        instructions::catalog::handle_register_medication(ctx, id, identity_hash)
+    }
+
+    pub fn register_product(
+        ctx: Context<RegisterProduct>,
+        id: [u8; 32],
+        identity_hash: [u8; 32],
+    ) -> Result<()> {
+        instructions::catalog::handle_register_product(ctx, id, identity_hash)
+    }
+
+    /// Withdraw (recall) or reinstate a medication (catalog authority only).
+    pub fn set_medication_status(
+        ctx: Context<SetMedicationStatus>,
+        status: CatalogStatus,
+    ) -> Result<()> {
+        instructions::catalog::handle_set_medication_status(ctx, status)
+    }
+
+    /// Withdraw (recall) or reinstate a product (catalog authority only).
+    pub fn set_product_status(ctx: Context<SetProductStatus>, status: CatalogStatus) -> Result<()> {
+        instructions::catalog::handle_set_product_status(ctx, status)
+    }
+
     pub fn issue_prescription(
         ctx: Context<IssuePrescription>,
         id: [u8; 32],
-        patient_id: [u8; 32],
         document_hash: [u8; 32],
         quantity: u32,
         expires_at: i64,
@@ -59,7 +94,6 @@ pub mod rxtrail {
         instructions::issue_prescription::handle_issue_prescription(
             ctx,
             id,
-            patient_id,
             document_hash,
             quantity,
             expires_at,

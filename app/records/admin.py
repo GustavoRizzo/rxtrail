@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from records.models import Patient, PrescriptionRecord
+from records.models import CatalogMedication, CatalogProduct, Patient, PrescriptionRecord
 
 
 @admin.register(Patient)
@@ -12,3 +12,14 @@ class PatientAdmin(admin.ModelAdmin):
 @admin.register(PrescriptionRecord)
 class PrescriptionRecordAdmin(admin.ModelAdmin):
     list_display = ["prescription_id", "patient", "created_at"]
+
+
+@admin.register(CatalogMedication)
+class CatalogMedicationAdmin(admin.ModelAdmin):
+    list_display = ["name", "active_ingredient", "atc_code", "regulatory_list"]
+    search_fields = ["name", "active_ingredient", "atc_code"]
+
+
+@admin.register(CatalogProduct)
+class CatalogProductAdmin(admin.ModelAdmin):
+    list_display = ["brand_name", "manufacturer", "medication", "kind"]

@@ -31,6 +31,20 @@ def percent(part: int, whole: int) -> int:
 
 
 @register.filter
+def get_item(mapping: dict, key: str):
+    """mapping[key] in a template, or None."""
+    return (mapping or {}).get(key)
+
+
+@register.filter
+def role_icon(role: str) -> str:
+    """The Lucide icon that stands for a participant's role."""
+    from web.context_processors import ROLE_ICONS
+
+    return ROLE_ICONS.get(role, "user")
+
+
+@register.filter
 def who(address: str, names: dict) -> str:
     """The participant's name for an on-chain key, or the short key itself."""
     return (names or {}).get(str(address)) or short(address, 6)

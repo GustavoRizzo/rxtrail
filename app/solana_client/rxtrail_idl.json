@@ -4,7 +4,8 @@
     "name": "rxtrail",
     "version": "0.1.0",
     "spec": "0.1.0",
-    "description": "Created with Anchor"
+    "description": "RxTrail: tamper-proof dispensing limits for controlled prescriptions, on Solana.",
+    "repository": "https://github.com/GustavoRizzo/rxtrail"
   },
   "instructions": [
     {
@@ -116,6 +117,36 @@
           }
         },
         {
+          "name": "medication",
+          "docs": [
+            "The prescribed medication: a withdrawn one freezes its prescriptions."
+          ]
+        },
+        {
+          "name": "product",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "product.id",
+                "account": "Product"
+              }
+            ]
+          }
+        },
+        {
           "name": "dispensation",
           "writable": true,
           "pda": {
@@ -211,6 +242,10 @@
         {
           "name": "health_authority",
           "type": "pubkey"
+        },
+        {
+          "name": "catalog_authority",
+          "type": "pubkey"
         }
       ]
     },
@@ -263,6 +298,61 @@
           }
         },
         {
+          "name": "medication",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  105,
+                  99,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "medication.id",
+                "account": "Medication"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescribed_product",
+          "docs": [
+            "The locked product, if any: it must be a version of `medication`."
+          ],
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescribed_product.id",
+                "account": "Product"
+              }
+            ]
+          }
+        },
+        {
           "name": "prescription",
           "writable": true,
           "pda": {
@@ -299,15 +389,6 @@
       "args": [
         {
           "name": "id",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "patient_id",
           "type": {
             "array": [
               "u8",
@@ -413,6 +494,99 @@
       ]
     },
     {
+      "name": "register_medication",
+      "discriminator": [
+        237,
+        6,
+        250,
+        59,
+        128,
+        204,
+        120,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "catalog_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "medication",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  105,
+                  99,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "identity_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "register_prescriber",
       "discriminator": [
         167,
@@ -492,6 +666,123 @@
       ]
     },
     {
+      "name": "register_product",
+      "discriminator": [
+        224,
+        97,
+        195,
+        220,
+        124,
+        218,
+        78,
+        43
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "catalog_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "medication",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  105,
+                  99,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "medication.id",
+                "account": "Medication"
+              }
+            ]
+          }
+        },
+        {
+          "name": "product",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "identity_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "set_dispenser_status",
       "docs": [
         "Suspend or reinstate a dispenser (health authority only)."
@@ -562,6 +853,84 @@
           "type": {
             "defined": {
               "name": "ParticipantStatus"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_medication_status",
+      "docs": [
+        "Withdraw (recall) or reinstate a medication (catalog authority only)."
+      ],
+      "discriminator": [
+        235,
+        255,
+        95,
+        219,
+        148,
+        155,
+        250,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "catalog_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "medication",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  100,
+                  105,
+                  99,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "medication.id",
+                "account": "Medication"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "CatalogStatus"
             }
           }
         }
@@ -643,6 +1012,81 @@
           }
         }
       ]
+    },
+    {
+      "name": "set_product_status",
+      "docs": [
+        "Withdraw (recall) or reinstate a product (catalog authority only)."
+      ],
+      "discriminator": [
+        82,
+        46,
+        217,
+        49,
+        116,
+        19,
+        1,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "catalog_authority",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "product",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  100,
+                  117,
+                  99,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "product.id",
+                "account": "Product"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "status",
+          "type": {
+            "defined": {
+              "name": "CatalogStatus"
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -686,6 +1130,19 @@
       ]
     },
     {
+      "name": "Medication",
+      "discriminator": [
+        230,
+        71,
+        252,
+        158,
+        87,
+        2,
+        120,
+        189
+      ]
+    },
+    {
       "name": "Prescriber",
       "discriminator": [
         55,
@@ -710,9 +1167,35 @@
         195,
         251
       ]
+    },
+    {
+      "name": "Product",
+      "discriminator": [
+        102,
+        76,
+        55,
+        251,
+        38,
+        73,
+        224,
+        229
+      ]
     }
   ],
   "events": [
+    {
+      "name": "CatalogStatusChanged",
+      "discriminator": [
+        57,
+        6,
+        143,
+        248,
+        127,
+        223,
+        241,
+        179
+      ]
+    },
     {
       "name": "DispenserRegistered",
       "discriminator": [
@@ -737,6 +1220,19 @@
         3,
         133,
         207
+      ]
+    },
+    {
+      "name": "MedicationRegistered",
+      "discriminator": [
+        192,
+        56,
+        200,
+        108,
+        219,
+        46,
+        139,
+        73
       ]
     },
     {
@@ -776,6 +1272,19 @@
         49,
         116,
         117
+      ]
+    },
+    {
+      "name": "ProductRegistered",
+      "discriminator": [
+        116,
+        97,
+        68,
+        213,
+        201,
+        211,
+        170,
+        221
       ]
     }
   ],
@@ -824,9 +1333,82 @@
       "code": 6008,
       "name": "QuantityExceedsRemaining",
       "msg": "Quantity exceeds what remains on the prescription"
+    },
+    {
+      "code": 6009,
+      "name": "NotCatalogAuthority",
+      "msg": "Signer is not the catalog authority"
+    },
+    {
+      "code": 6010,
+      "name": "MedicationNotActive",
+      "msg": "Medication is withdrawn from the catalog"
+    },
+    {
+      "code": 6011,
+      "name": "ProductNotActive",
+      "msg": "Product is withdrawn from the catalog"
+    },
+    {
+      "code": 6012,
+      "name": "ProductMedicationMismatch",
+      "msg": "Product is not a version of the prescribed medication"
+    },
+    {
+      "code": 6013,
+      "name": "PrescribedProductMismatch",
+      "msg": "The prescriber locked another product: substitution not allowed"
     }
   ],
   "types": [
+    {
+      "name": "CatalogStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Withdrawn"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CatalogStatusChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "entry",
+            "docs": [
+              "The medication or product account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "is_medication",
+            "docs": [
+              "True for a medication, false for a product."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CatalogStatus"
+              }
+            }
+          },
+          {
+            "name": "changed_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "Config",
       "docs": [
@@ -846,6 +1428,13 @@
             "name": "health_authority",
             "docs": [
               "Enables dispensers (e.g. a health regulator)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "catalog_authority",
+            "docs": [
+              "Registers and withdraws medications and products (e.g. a drug regulator)."
             ],
             "type": "pubkey"
           },
@@ -879,6 +1468,13 @@
             "name": "dispenser",
             "docs": [
               "Key of the dispenser who signed it."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "product",
+            "docs": [
+              "The product handed out (its account address)."
             ],
             "type": "pubkey"
           },
@@ -962,6 +1558,67 @@
       }
     },
     {
+      "name": "Medication",
+      "docs": [
+        "A medication in the catalog: an active ingredient, strength and form",
+        "(e.g. clonazepam 2 mg tablet). What a prescriber prescribes."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "docs": [
+              "Random id; also the PDA seed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "identity_hash",
+            "docs": [
+              "sha256 of the fields that define the medication, as published in the",
+              "off-chain catalog. Written once: the meaning of this record can never",
+              "be rewritten, while names and guidance stay off-chain."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CatalogStatus"
+              }
+            }
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          },
+          {
+            "name": "status_changed_at",
+            "docs": [
+              "When the status last changed (registration, withdrawal, reinstatement)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "MedicationDispensed",
       "type": {
         "kind": "struct",
@@ -979,12 +1636,41 @@
             "type": "pubkey"
           },
           {
+            "name": "product",
+            "type": "pubkey"
+          },
+          {
             "name": "quantity",
             "type": "u32"
           },
           {
             "name": "remaining_after",
             "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MedicationRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "medication",
+            "type": "pubkey"
+          },
+          {
+            "name": "identity_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
           }
         ]
       }
@@ -1125,16 +1811,11 @@
             "type": "pubkey"
           },
           {
-            "name": "patient_id",
+            "name": "medication",
             "docs": [
-              "Random patient id. Never derived from a real-world document."
+              "The catalog medication prescribed (its account address)."
             ],
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "type": "pubkey"
           },
           {
             "name": "document_hash",
@@ -1181,6 +1862,17 @@
             }
           },
           {
+            "name": "prescribed_product",
+            "docs": [
+              "Set when the prescriber locked a product (\"do not substitute\"): only",
+              "that one may be dispensed. Last, so the fixed-size fields before it keep",
+              "fixed offsets for filtered queries."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -1201,6 +1893,16 @@
             "type": "pubkey"
           },
           {
+            "name": "medication",
+            "type": "pubkey"
+          },
+          {
+            "name": "prescribed_product",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
             "name": "quantity_granted",
             "type": "u32"
           },
@@ -1218,6 +1920,98 @@
         "variants": [
           {
             "name": "Active"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Product",
+      "docs": [
+        "A medication as one manufacturer makes it: the box a pharmacy hands out."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "docs": [
+              "Random id; also the PDA seed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "medication",
+            "docs": [
+              "The medication this product is a version of."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "identity_hash",
+            "docs": [
+              "sha256 of the fields that define the product (medication, manufacturer,",
+              "brand, kind). Written once."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CatalogStatus"
+              }
+            }
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
+          },
+          {
+            "name": "status_changed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProductRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "product",
+            "type": "pubkey"
+          },
+          {
+            "name": "medication",
+            "type": "pubkey"
+          },
+          {
+            "name": "identity_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "registered_at",
+            "type": "i64"
           }
         ]
       }

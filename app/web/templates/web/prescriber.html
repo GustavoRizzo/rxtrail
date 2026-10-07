@@ -8,20 +8,57 @@
 </div>
 
 <div class="grid gap-6 lg:grid-cols-[24rem_1fr]">
-  <form method="post" class="rx-card rx-reveal h-fit p-6" x-data="{ busy: false }" @submit="busy = true">
+  {{ chosen|json_script:"rx-chosen" }}
+  <form method="post" class="rx-card rx-reveal h-fit p-6"
+        x-data="rxMedicationPicker('rx-chosen', '{% url 'web:catalog_search' %}', '{{ form.locked_product_id.value|default:'' }}', '{{ form.quantity.value|default:'' }}', '{{ form.valid_days.value|default:30 }}')"
+        @submit="if (!chosen) { $event.preventDefault(); openPicker(); } else { busy = true }">
     {% csrf_token %}
     <h2 class="flex items-center gap-2 text-lg font-semibold text-white"><i data-lucide="file-plus-2" class="h-5 w-5 text-brand-accent"></i> New prescription</h2>
     <p class="mt-1 text-sm text-slate-500">You sign it with your own key. The document stays private; only its hash goes on-chain.</p>
-    {% if form.errors %}<p class="mt-3 text-sm text-danger">Please check the highlighted fields.</p>{% endif %}
+    {% if form.errors %}<p class="mt-3 text-sm text-danger">Please check the highlighted fields.{% for e in form.medication_id.errors %} {{ e }}{% endfor %}</p>{% endif %}
     <div class="mt-5 grid gap-4">
       {% include "web/_field.html" with label="Patient name" name="patient_name" value=form.patient_name.value required=True %}
       {% include "web/_field.html" with label="Patient ID document" name="patient_document" value=form.patient_document.value required=True placeholder="e.g. national id number" %}
-      {% include "web/_field.html" with label="Medication" name="medication" value=form.medication.value required=True placeholder="e.g. Clonazepam 2mg" %}
+
+      <div>
+        <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Medication</p>
+        <input type="hidden" name="medication_id" :value="chosen ? chosen.id : ''">
+        <button type="button" @click="openPicker()" class="rx-input mt-1.5 flex items-center gap-3 text-left" :class="!chosen && 'is-empty'">
+          <i data-lucide="pill" class="h-4 w-4 shrink-0 text-brand-primary"></i>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate" x-text="chosen ? chosen.name : 'Choose from the catalog'">Choose from the catalog</span>
+            <span class="block truncate text-xs text-slate-500" x-show="chosen" x-text="chosen && `${chosen.active_ingredient} · ${chosen.form}`"></span>
+          </span>
+          <span class="shrink-0 text-xs text-brand-secondary" x-text="chosen ? 'Change' : 'Search'">Search</span>
+        </button>
+      </div>
+
+      <label class="block text-xs font-medium uppercase tracking-wide text-slate-500" x-show="chosen && chosen.products.length" x-cloak>Product
+        <span class="relative mt-1.5 block">
+          <select name="locked_product_id" x-model="locked" class="rx-input normal-case">
+            <option value="">Any version: the pharmacy chooses</option>
+            <template x-for="p in (chosen ? chosen.products : [])" :key="p.id">
+              <option :value="p.id" x-text="`Only ${p.brand} (${p.kind})`"></option>
+            </template>
+          </select>
+          <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+        </span>
+        <span class="mt-1.5 block text-xs normal-case tracking-normal text-slate-500" x-show="lockedProduct" x-text="lockedProduct && `Do not substitute: only ${lockedProduct.brand} by ${lockedProduct.manufacturer} can be dispensed.`"></span>
+      </label>
+
       {% include "web/_field.html" with label="Dosage" name="dosage" value=form.dosage.value required=True placeholder="e.g. 1 tablet at night" %}
       {% include "web/_field.html" with label="Instructions (optional)" name="instructions" value=form.instructions.value %}
       <div class="grid grid-cols-2 gap-4">
-        {% include "web/_field.html" with label="Quantity" name="quantity" type="number" min="1" value=form.quantity.value required=True %}
-        {% include "web/_field.html" with label="Valid for (days)" name="valid_days" type="number" min="1" value=form.valid_days.value|default:30 required=True %}
+        <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Quantity
+          <input name="quantity" type="number" min="1" required x-model.number="quantity" class="rx-input mt-1.5 normal-case">
+        </label>
+        <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Valid for (days)
+          <input name="valid_days" type="number" min="1" required x-model.number="days" class="rx-input mt-1.5 normal-case">
+        </label>
+      </div>
+      <div class="flex items-start gap-2 rounded-xl bg-brand-secondary/10 px-3 py-2 text-xs text-brand-secondary" x-show="warnings.length" x-cloak>
+        <i data-lucide="triangle-alert" class="mt-0.5 h-3.5 w-3.5 shrink-0"></i>
+        <ul class="grid gap-1"><template x-for="w in warnings" :key="w"><li x-text="w"></li></template></ul>
       </div>
     </div>
     <button class="rx-button mt-6 flex w-full items-center justify-center gap-2 py-3" :disabled="busy">
@@ -29,6 +66,28 @@
       <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
       <span x-text="busy ? 'Signing and sending…' : 'Sign and issue'">Sign and issue</span>
     </button>
+
+    {% comment %}The medication picker: search the catalog by name, active ingredient, ATC code,
+    brand or manufacturer. Teleported to <body>: the card's backdrop filter would trap a fixed
+    overlay inside it.{% endcomment %}
+    <template x-teleport="body">
+    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-start justify-center bg-surface/80 p-4 pt-[8vh] backdrop-blur-sm"
+         @keydown.escape.window="open = false" @click.self="open = false" role="dialog" aria-modal="true" aria-label="Choose a medication"
+         x-transition.opacity.duration.150ms>
+      <div class="rx-card flex max-h-[80vh] w-full max-w-2xl flex-col p-5">
+        <div class="flex items-center gap-3">
+          <i data-lucide="search" class="h-5 w-5 shrink-0 text-brand-primary"></i>
+          <input x-ref="search" type="search" x-model="q" @input.debounce.250ms="search()" @keydown.down.prevent="move(1)"
+                 placeholder="Name, active ingredient, ATC code, brand or manufacturer" class="rx-input" aria-label="Search the catalog">
+          <button type="button" @click="open = false" class="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-slate-200" title="Close"><i data-lucide="x" class="h-5 w-5"></i></button>
+        </div>
+        <div class="mt-4 min-h-24 overflow-y-auto pr-1" @keydown.down.prevent="move(1)" @keydown.up.prevent="move(-1)">
+          <p x-show="loading" class="flex items-center gap-2 p-4 text-sm text-slate-500"><i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i> Searching the catalog…</p>
+          <div x-ref="results" x-html="html"></div>
+        </div>
+      </div>
+    </div>
+    </template>
   </form>
 
   <section class="rx-reveal" style="--i:1" x-data="{ searching: {{ filters_active|yesno:'true,false' }} }">

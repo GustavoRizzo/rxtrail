@@ -3,12 +3,15 @@ from django.db import models
 
 
 class Patient(models.Model):
-    """A real person, and the random id that stands for them on-chain."""
+    """A real person, and the random id that ties their documents together.
+
+    Nothing about the patient goes on-chain, not even this id.
+    """
 
     # National id, passport... whatever the country uses. Unique per patient.
     document_number = models.CharField(max_length=64, unique=True)
     name = models.CharField(max_length=200)
-    # Hex of the random 32-byte id used on-chain. Never derived from the above.
+    # Hex of a random 32-byte id. Never derived from the above.
     patient_id = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -31,6 +34,75 @@ class PrescriptionRecord(models.Model):
 
     def __str__(self):
         return self.prescription_id
+
+
+class Manufacturer(models.Model):
+    """A pharmaceutical manufacturer (laboratory): who makes a product."""
+
+    name = models.CharField(max_length=200, unique=True)
+    country = models.CharField(max_length=64, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CatalogMedication(models.Model):
+    """A medication in the public catalog, behind an on-chain Medication.
+
+    Active ingredient, strength and form define it: their hash is on-chain
+    (rxtrail.catalog.identity_hash) and they never change. Everything else is
+    guidance. Whether it is withdrawn lives on-chain only.
+    """
+
+    medication_id = models.CharField(max_length=64, unique=True)
+    address = models.CharField(max_length=64, unique=True)
+    identity_hash = models.CharField(max_length=64, unique=True)
+    name = models.CharField(max_length=200)
+    active_ingredient = models.CharField(max_length=200)
+    strength = models.CharField(max_length=64)
+    form = models.CharField(max_length=64)
+    atc_code = models.CharField(max_length=7, blank=True, db_index=True)
+    unit = models.CharField(max_length=32, default="unit")
+    regulatory_list = models.CharField(max_length=16, blank=True)
+    dosage_guidance = models.TextField(blank=True)
+    usual_max_daily_units = models.PositiveIntegerField(null=True, blank=True)
+    max_quantity = models.PositiveIntegerField(null=True, blank=True)
+    max_validity_days = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class CatalogProduct(models.Model):
+    """One manufacturer's version of a catalog medication, behind an on-chain Product."""
+
+    class Kind(models.TextChoices):
+        REFERENCE = "reference", "Reference"
+        GENERIC = "generic", "Generic"
+        SIMILAR = "similar", "Similar"
+
+    product_id = models.CharField(max_length=64, unique=True)
+    address = models.CharField(max_length=64, unique=True)
+    identity_hash = models.CharField(max_length=64, unique=True)
+    medication = models.ForeignKey(
+        CatalogMedication, on_delete=models.PROTECT, related_name="products"
+    )
+    manufacturer = models.ForeignKey(
+        Manufacturer, on_delete=models.PROTECT, related_name="products"
+    )
+    brand_name = models.CharField(max_length=200)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["brand_name"]
+
+    def __str__(self):
+        return f"{self.brand_name} ({self.manufacturer})"
 
 
 class ChainBinding(models.Model):
@@ -64,6 +136,7 @@ class Participant(models.Model):
         DISPENSER = "dispenser", "Dispenser"
         PROFESSIONAL_AUTHORITY = "professional_authority", "Professional authority"
         HEALTH_AUTHORITY = "health_authority", "Health authority"
+        CATALOG_AUTHORITY = "catalog_authority", "Catalog authority"
         AUDITOR = "auditor", "Auditor"
 
     user = models.OneToOneField(

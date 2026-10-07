@@ -51,7 +51,7 @@ def keys(tmp_path, settings):
     call_command("rxtrail", "setup", verbosity=0)  # idempotent
     store = tmp_path / "keys"
     store.mkdir(mode=0o700)
-    for name in ("operator", "professional-authority", "health-authority"):
+    for name in ("operator", "professional-authority", "health-authority", "catalog-authority"):
         shutil.copy(settings.SOLANA_KEYS_DIR / f"{name}.json", store)
     return FileKeyStore(store)
 

@@ -1,3 +1,4 @@
+pub mod catalog;
 pub mod dispense;
 pub mod initialize;
 pub mod issue_prescription;
@@ -5,6 +6,7 @@ pub mod register_dispenser;
 pub mod register_prescriber;
 pub mod set_status;
 
+pub use catalog::*;
 pub use dispense::*;
 pub use initialize::*;
 pub use issue_prescription::*;

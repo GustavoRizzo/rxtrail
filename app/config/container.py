@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from django.conf import settings
 
 from records.binding import ensure_bound
-from records.repositories import DjangoDocumentVault, DjangoPatientDirectory
+from records.repositories import DjangoCatalog, DjangoDocumentVault, DjangoPatientDirectory
 from rxtrail.services import RxTrail
 from solana_client.keystore import FileKeyStore
 from solana_client.ledger import SolanaLedger
@@ -35,4 +35,7 @@ async def open_rxtrail() -> AsyncIterator[tuple[RxTrail, SolanaLedger]]:
         await ensure_bound(
             settings.SOLANA_NETWORK, await chain.genesis_hash(), str(chain.program_id)
         )
-        yield RxTrail(chain, DjangoDocumentVault(), DjangoPatientDirectory()), chain
+        yield (
+            RxTrail(chain, DjangoDocumentVault(), DjangoPatientDirectory(), DjangoCatalog()),
+            chain,
+        )

@@ -20,4 +20,14 @@ pub enum RxTrailError {
     PrescriptionNotActive,
     #[msg("Quantity exceeds what remains on the prescription")]
     QuantityExceedsRemaining,
+    #[msg("Signer is not the catalog authority")]
+    NotCatalogAuthority,
+    #[msg("Medication is withdrawn from the catalog")]
+    MedicationNotActive,
+    #[msg("Product is withdrawn from the catalog")]
+    ProductNotActive,
+    #[msg("Product is not a version of the prescribed medication")]
+    ProductMedicationMismatch,
+    #[msg("The prescriber locked another product: substitution not allowed")]
+    PrescribedProductMismatch,
 }

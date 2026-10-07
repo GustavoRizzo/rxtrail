@@ -1,11 +1,14 @@
 use anchor_lang::prelude::*;
 
 use crate::{
-    constants::{DISPENSATION_SEED, DISPENSER_SEED, PRESCRIBER_SEED, PRESCRIPTION_SEED},
+    constants::{
+        DISPENSATION_SEED, DISPENSER_SEED, PRESCRIBER_SEED, PRESCRIPTION_SEED, PRODUCT_SEED,
+    },
     error::RxTrailError,
     events::MedicationDispensed,
     state::{
-        Dispensation, Dispenser, ParticipantStatus, Prescriber, Prescription, PrescriptionStatus,
+        CatalogStatus, Dispensation, Dispenser, Medication, ParticipantStatus, Prescriber,
+        Prescription, PrescriptionStatus, Product,
     },
 };
 
@@ -15,6 +18,10 @@ use crate::{
 /// quantity granted. Two dispensers racing on the same prescription both write
 /// to its account, so the network runs them one after the other; the second
 /// sees the first's counter and is refused if not enough remains.
+///
+/// The dispenser records which product it hands out. It must be a version of
+/// the prescribed medication (the locked one, if the prescriber locked one),
+/// and neither may be withdrawn: a recall reaches every pharmacy at once.
 #[derive(Accounts)]
 pub struct Dispense<'info> {
     #[account(mut)]
@@ -42,6 +49,24 @@ pub struct Dispense<'info> {
             @ RxTrailError::PrescriberNotActive
     )]
     pub prescriber: Account<'info, Prescriber>,
+    /// The prescribed medication: a withdrawn one freezes its prescriptions.
+    #[account(
+        address = prescription.medication,
+        constraint = medication.status == CatalogStatus::Active
+            @ RxTrailError::MedicationNotActive
+    )]
+    pub medication: Account<'info, Medication>,
+    #[account(
+        seeds = [PRODUCT_SEED, product.id.as_ref()],
+        bump = product.bump,
+        constraint = product.medication == prescription.medication
+            @ RxTrailError::ProductMedicationMismatch,
+        constraint = product.status == CatalogStatus::Active
+            @ RxTrailError::ProductNotActive,
+        constraint = prescription.prescribed_product.is_none_or(|locked| locked == product.key())
+            @ RxTrailError::PrescribedProductMismatch
+    )]
+    pub product: Account<'info, Product>,
     #[account(
         init,
         payer = payer,
@@ -81,11 +106,13 @@ pub fn handle_dispense(ctx: Context<Dispense>, quantity: u32) -> Result<()> {
     let remaining_after = prescription.remaining();
 
     let dispenser = ctx.accounts.dispenser_signer.key();
+    let product = ctx.accounts.product.key();
     let prescription_key = prescription.key();
     ctx.accounts.dispensation.set_inner(Dispensation {
         prescription: prescription_key,
         index,
         dispenser,
+        product,
         quantity,
         remaining_after,
         dispensed_at: now,
@@ -95,6 +122,7 @@ pub fn handle_dispense(ctx: Context<Dispense>, quantity: u32) -> Result<()> {
         prescription: prescription_key,
         dispensation: ctx.accounts.dispensation.key(),
         dispenser,
+        product,
         quantity,
         remaining_after,
     });

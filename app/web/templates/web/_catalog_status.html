@@ -1,0 +1,8 @@
+{% comment %}On-chain status of a catalog record: status = "active" | "withdrawn" | None.{% endcomment %}
+{% if status == "active" %}
+  <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><i data-lucide="circle-check" class="h-3 w-3"></i> Active</span>
+{% elif status == "withdrawn" %}
+  <span class="flex items-center gap-1.5 rounded-full bg-danger/10 px-3 py-1 text-xs text-danger"><i data-lucide="package-x" class="h-3 w-3"></i> Withdrawn</span>
+{% else %}
+  <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400">Not on this chain</span>
+{% endif %}

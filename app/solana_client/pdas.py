@@ -27,6 +27,14 @@ def prescription(program_id: Pubkey, prescription_id: bytes) -> Pubkey:
     return _find(program_id, b"prescription", prescription_id)
 
 
+def medication(program_id: Pubkey, medication_id: bytes) -> Pubkey:
+    return _find(program_id, b"medication", medication_id)
+
+
+def product(program_id: Pubkey, product_id: bytes) -> Pubkey:
+    return _find(program_id, b"product", product_id)
+
+
 def dispensation(program_id: Pubkey, prescription_address: Pubkey, index: int) -> Pubkey:
     return _find(
         program_id, b"dispensation", bytes(prescription_address), index.to_bytes(4, "little")

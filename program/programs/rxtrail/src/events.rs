@@ -19,6 +19,8 @@ pub struct DispenserRegistered {
 pub struct PrescriptionIssued {
     pub prescription: Pubkey,
     pub prescriber: Pubkey,
+    pub medication: Pubkey,
+    pub prescribed_product: Option<Pubkey>,
     pub quantity_granted: u32,
     pub expires_at: i64,
 }
@@ -28,8 +30,34 @@ pub struct MedicationDispensed {
     pub prescription: Pubkey,
     pub dispensation: Pubkey,
     pub dispenser: Pubkey,
+    pub product: Pubkey,
     pub quantity: u32,
     pub remaining_after: u32,
+}
+
+#[event]
+pub struct MedicationRegistered {
+    pub medication: Pubkey,
+    pub identity_hash: [u8; 32],
+    pub registered_at: i64,
+}
+
+#[event]
+pub struct ProductRegistered {
+    pub product: Pubkey,
+    pub medication: Pubkey,
+    pub identity_hash: [u8; 32],
+    pub registered_at: i64,
+}
+
+#[event]
+pub struct CatalogStatusChanged {
+    /// The medication or product account.
+    pub entry: Pubkey,
+    /// True for a medication, false for a product.
+    pub is_medication: bool,
+    pub status: crate::state::CatalogStatus,
+    pub changed_at: i64,
 }
 
 #[event]

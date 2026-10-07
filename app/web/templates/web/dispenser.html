@@ -20,7 +20,7 @@
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p class="text-xs uppercase tracking-wide text-slate-500">Prescription</p>
-            <h2 class="text-2xl font-bold text-white">{% if record %}{{ record.document.medication }}{% else %}Controlled medication{% endif %}</h2>
+            <h2 class="text-2xl font-bold text-white">{% if medication %}{{ medication.record.name }}{% elif record %}{{ record.document.medication }}{% else %}Controlled medication{% endif %}</h2>
             {% if record %}<p class="mt-1 text-slate-400">{{ record.patient.name }} · {{ record.document.dosage }}</p>{% endif %}
             <p class="mt-1 text-xs text-slate-500">Prescribed by <span class="text-slate-300">{{ found.prescriber|who:names }}</span> <span class="font-mono">({{ found.prescriber|short:4 }})</span> · expires {{ found.expires_at|date:"M j, Y" }}</p>
           </div>
@@ -29,12 +29,32 @@
             <p class="text-sm text-slate-500">of {{ found.quantity_granted }} remaining</p>
           </div>
         </div>
-        <div class="rx-progress mt-5"><span style="width: {% widthratio found.quantity_dispensed found.quantity_granted 100 %}%"></span></div>
+        <div class="rx-progress mt-5{% if frozen %} is-muted{% endif %}"><span style="width: {% widthratio found.quantity_dispensed found.quantity_granted 100 %}%"></span></div>
 
-        {% if found.remaining %}
-          <form method="post" action="{% url 'web:dispense' %}" class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end" x-data="{ qty: Math.min(1, {{ found.remaining }}), busy: false }" @submit="busy = true">
+        {% if frozen %}
+          <p class="mt-6 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-slate-200"><i data-lucide="snowflake" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-danger">Frozen: medication withdrawn.</span> The catalog authority recalled {{ medication.record.name }}. No pharmacy can dispense it until it is reinstated.</span></p>
+        {% elif found.remaining %}
+          <form method="post" action="{% url 'web:dispense' %}" class="mt-6 grid gap-4" x-data="{ qty: Math.min(1, {{ found.remaining }}), busy: false }" @submit="busy = true">
             {% csrf_token %}
             <input type="hidden" name="prescription_id" value="{{ prescription_id }}">
+            <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Product handed out
+              <span class="relative mt-1.5 block">
+                <select name="product_id" required class="rx-input normal-case">
+                  <option value="">Choose the box you hand over</option>
+                  {% for p in medication.products %}
+                    {% if found.prescribed_product and found.prescribed_product != p.record.address %}
+                      <option value="{{ p.record.product_id }}" disabled>{{ p.record.brand_name }} · {{ p.record.manufacturer.name }} (not the locked brand)</option>
+                    {% elif not p.available %}
+                      <option value="{{ p.record.product_id }}" disabled>{{ p.record.brand_name }} · {{ p.record.manufacturer.name }} (withdrawn)</option>
+                    {% else %}
+                      <option value="{{ p.record.product_id }}">{{ p.record.brand_name }} · {{ p.record.manufacturer.name }} ({{ p.record.get_kind_display|lower }})</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+                <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+              </span>
+            </label>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
             <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Quantity to dispense
               <div class="mt-1.5 flex items-center gap-2">
                 <button type="button" @click="qty = Math.max(1, qty - 1)" class="grid h-11 w-11 place-items-center rounded-xl border border-white/10 hover:bg-white/5"><i data-lucide="minus" class="h-4 w-4"></i></button>
@@ -47,8 +67,10 @@
               <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
               <span x-text="busy ? 'Waiting for the chain…' : 'Sign and dispense'">Sign and dispense</span>
             </button>
+            </div>
           </form>
-          <p class="mt-3 text-xs text-slate-500">Hand the medication over only after the confirmation appears. Asking for more than remains is refused by the chain itself.</p>
+          {% if found.prescribed_product %}<p class="mt-3 flex items-center gap-2 text-xs text-brand-secondary"><i data-lucide="lock-keyhole" class="h-3.5 w-3.5"></i> The prescriber locked one brand: substitution is not allowed.</p>{% endif %}
+          <p class="mt-3 text-xs text-slate-500">Hand the medication over only after the confirmation appears. Asking for more than remains, or a product that is not this medication, is refused by the chain itself.</p>
         {% else %}
           <p class="mt-6 flex items-center gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="ban" class="h-4 w-4 text-danger"></i> Nothing left to dispense on this prescription.</p>
         {% endif %}

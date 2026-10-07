@@ -20,8 +20,23 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from config import container
-from records.models import Activity, Participant, PrescriptionRecord
-from rxtrail.domain import Prescription, PrescriptionDocument, RxTrailError, Standing
+from records.models import (
+    Activity,
+    CatalogMedication,
+    CatalogProduct,
+    Participant,
+    PrescriptionRecord,
+)
+from records.repositories import medication_details
+from rxtrail import catalog as rules_of_thumb
+from rxtrail.domain import (
+    CatalogStatus,
+    Prescription,
+    PrescriptionDocument,
+    RxTrailError,
+    Standing,
+)
+from web import catalog
 from web.chain import with_chain
 from web.forms import DispenseForm, EnableParticipantForm, IssueForm, PrescriptionFilterForm
 
@@ -95,6 +110,7 @@ class LoginView(auth_views.LoginView):
                 Role.DISPENSER,
                 Role.PROFESSIONAL_AUTHORITY,
                 Role.HEALTH_AUTHORITY,
+                Role.CATALOG_AUTHORITY,
                 Role.AUDITOR,
             ]
             accounts = Participant.objects.select_related("user").order_by("display_name")
@@ -116,6 +132,7 @@ def home(request):
             Role.DISPENSER: "web:dispenser",
             Role.PROFESSIONAL_AUTHORITY: "web:authority",
             Role.HEALTH_AUTHORITY: "web:authority",
+            Role.CATALOG_AUTHORITY: "web:catalog_office",
             Role.AUDITOR: "web:auditor",
         }[participant.role]
     )
@@ -146,6 +163,12 @@ def prescription(request, prescription_id: str):
         .filter(prescription_id=prescription_id)
         .first()
     )
+    rx = trail.prescription
+    # The medication is public (its catalog record is open data); who takes it is not.
+    named = catalog.by_address(
+        [rx.medication, *([rx.prescribed_product] if rx.prescribed_product else [])]
+        + [d.product for d in trail.dispensations]
+    )
     # The document holds personal data: only the issuing prescriber and
     # dispensers see it. Everyone else sees the on-chain facts and the verdict.
     participant = (
@@ -166,6 +189,9 @@ def prescription(request, prescription_id: str):
             "trail": trail,
             "prescription_id": prescription_id,
             "record": record if can_read else None,
+            "medication": named.get(rx.medication),
+            "locked": named.get(rx.prescribed_product),
+            "products": named,
             "activities": Activity.objects.select_related("actor").filter(
                 prescription_id=prescription_id
             )[:20],
@@ -181,16 +207,23 @@ def prescription(request, prescription_id: str):
 def prescriber(request):
     me = request.participant
     form = IssueForm(request.POST or None)
+    chosen = None
+    if form.is_bound and form.data.get("medication_id"):
+        chosen = CatalogMedication.objects.filter(medication_id=form.data["medication_id"]).first()
+        if chosen is None:
+            form.add_error("medication_id", "Choose a medication from the catalog.")
     if request.method == "POST" and form.is_valid():
         data = form.cleaned_data
         document = PrescriptionDocument(
-            medication=data["medication"],
+            medication_id=chosen.medication_id,
+            medication=chosen.name,
             dosage=data["dosage"],
             instructions=data["instructions"],
             quantity=data["quantity"],
             prescriber_name=me.display_name,
             patient_name=data["patient_name"],
             issued_on=datetime.now(UTC).date().isoformat(),
+            locked_product_id=data["locked_product_id"],
         )
         try:
             issued = with_chain(
@@ -208,13 +241,17 @@ def prescriber(request):
             _log(
                 me,
                 "issue",
-                f"Issued {data['quantity']} × {data['medication']}",
+                f"Issued {data['quantity']} × {chosen.name}",
                 rx,
                 issued.receipt.signature,
             )
             messages.success(
                 request, f"Prescription issued on-chain. Share its id with the patient: {rx}"
             )
+            for warning in rules_of_thumb.warnings(
+                medication_details(chosen), data["quantity"], data["valid_days"]
+            ):
+                messages.warning(request, f"Check: {warning}.")
             return redirect("web:prescription", prescription_id=rx)
 
     filters = PrescriptionFilterForm(request.GET)
@@ -224,6 +261,7 @@ def prescriber(request):
         "web/prescriber.html",
         {
             "form": form,
+            "chosen": catalog.cards([chosen])[0].data() if chosen else None,
             "filters": filters,
             "filters_active": filters.active_count(),
             "rows": rows[:PRESCRIBER_LIST_SHOWN],
@@ -299,7 +337,7 @@ def _prescriber_rows(me, wanted) -> tuple[list[_Row], int]:
 def dispenser(request):
     me = request.participant
     prescription_id = request.GET.get("rx", "").strip().lower()
-    found = record = None
+    found = record = medication = None
     if prescription_id:
         try:
             found = with_chain(
@@ -314,12 +352,21 @@ def dispenser(request):
             .filter(prescription_id=prescription_id)
             .first()
         )
+    if found:
+        listed = catalog.cards(
+            CatalogMedication.objects.prefetch_related("products__manufacturer").filter(
+                address=found.medication
+            )
+        )
+        medication = listed[0] if listed else None
     return render(
         request,
         "web/dispenser.html",
         {
             "prescription_id": prescription_id,
             "found": found,
+            "medication": medication,
+            "frozen": medication is not None and medication.status is CatalogStatus.WITHDRAWN,
             "record": record,
             "names": _names() if found else {},
             "activities": me.activities.all()[:10],
@@ -333,16 +380,26 @@ def dispense(request):
     me = request.participant
     form = DispenseForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Enter a quantity of at least 1.")
+        for errors in form.errors.values():
+            messages.error(request, " ".join(errors))
         return redirect(f"/dispenser/?rx={request.POST.get('prescription_id', '')}")
-    rx, quantity = form.cleaned_data["prescription_id"], form.cleaned_data["quantity"]
+    data = form.cleaned_data
+    rx, quantity = data["prescription_id"], data["quantity"]
+    product = bytes.fromhex(data["product_id"])
     try:
-        receipt = with_chain(lambda app, _l: app.dispense(me.key_name, bytes.fromhex(rx), quantity))
+        receipt = with_chain(
+            lambda app, _l: app.dispense(me.key_name, bytes.fromhex(rx), product, quantity)
+        )
     except RxTrailError as exc:
         _fail(request, exc)
     else:
-        _log(me, "dispense", f"Dispensed {quantity}", rx, receipt.signature)
-        messages.success(request, f"Dispensed {quantity}. Recorded on-chain.")
+        brand = (
+            CatalogProduct.objects.filter(product_id=data["product_id"])
+            .values_list("brand_name", flat=True)
+            .first()
+        )
+        _log(me, "dispense", f"Dispensed {quantity} × {brand}", rx, receipt.signature)
+        messages.success(request, f"Dispensed {quantity} × {brand}. Recorded on-chain.")
     return redirect(f"/dispenser/?rx={rx}")
 
 

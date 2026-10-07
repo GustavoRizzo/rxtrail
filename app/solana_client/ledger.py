@@ -31,13 +31,16 @@ from solders.transaction import Transaction
 
 from rxtrail.domain import (
     PROGRAM_ERRORS,
+    CatalogStatus,
     Dispensation,
     LedgerUnavailableError,
+    Medication,
     NotRegisteredError,
     OutcomeUnknownError,
     ParticipantStatus,
     Prescription,
     PrescriptionStatus,
+    Product,
     Receipt,
     TransactionRejectedError,
 )
@@ -97,13 +100,16 @@ class SolanaLedger:
 
     # -- writes -------------------------------------------------------------------
 
-    async def initialize(self, professional_authority: str, health_authority: str) -> Receipt:
+    async def initialize(
+        self, professional_authority: str, health_authority: str, catalog_authority: str
+    ) -> Receipt:
         config = pdas.config(self.program_id)
         return await self._send(
             "initialize",
             {
                 "professional_authority": self.address_of(professional_authority),
                 "health_authority": self.address_of(health_authority),
+                "catalog_authority": self.address_of(catalog_authority),
             },
             {"config": config},
             signers=[],
@@ -172,14 +178,90 @@ class SolanaLedger:
             address=record,
         )
 
+    # -- catalog -------------------------------------------------------------------
+
+    def medication_address(self, medication_id: bytes) -> str:
+        return str(pdas.medication(self.program_id, medication_id))
+
+    def product_address(self, product_id: bytes) -> str:
+        return str(pdas.product(self.program_id, product_id))
+
+    async def register_medication(
+        self, authority: str, medication_id: bytes, identity_hash: bytes
+    ) -> Receipt:
+        record = pdas.medication(self.program_id, medication_id)
+        return await self._send(
+            "register_medication",
+            {"id": medication_id, "identity_hash": identity_hash},
+            {
+                "catalog_authority": self._keys.keypair(authority).pubkey(),
+                "config": pdas.config(self.program_id),
+                "medication": record,
+            },
+            signers=[authority],
+            address=record,
+        )
+
+    async def register_product(
+        self, authority: str, product_id: bytes, medication_id: bytes, identity_hash: bytes
+    ) -> Receipt:
+        record = pdas.product(self.program_id, product_id)
+        return await self._send(
+            "register_product",
+            {"id": product_id, "identity_hash": identity_hash},
+            {
+                "catalog_authority": self._keys.keypair(authority).pubkey(),
+                "config": pdas.config(self.program_id),
+                "medication": pdas.medication(self.program_id, medication_id),
+                "product": record,
+            },
+            signers=[authority],
+            address=record,
+        )
+
+    async def set_medication_status(
+        self, authority: str, medication_id: bytes, status: CatalogStatus
+    ) -> Receipt:
+        record = pdas.medication(self.program_id, medication_id)
+        return await self._send(
+            "set_medication_status",
+            {"status": status.value.capitalize()},
+            {
+                "catalog_authority": self._keys.keypair(authority).pubkey(),
+                "config": pdas.config(self.program_id),
+                "medication": record,
+            },
+            signers=[authority],
+            address=record,
+        )
+
+    async def set_product_status(
+        self, authority: str, product_id: bytes, status: CatalogStatus
+    ) -> Receipt:
+        record = pdas.product(self.program_id, product_id)
+        return await self._send(
+            "set_product_status",
+            {"status": status.value.capitalize()},
+            {
+                "catalog_authority": self._keys.keypair(authority).pubkey(),
+                "config": pdas.config(self.program_id),
+                "product": record,
+            },
+            signers=[authority],
+            address=record,
+        )
+
+    # -- prescriptions --------------------------------------------------------------
+
     async def issue_prescription(
         self,
         prescriber: str,
         prescription_id: bytes,
-        patient_id: bytes,
+        medication_id: bytes,
         document_hash: bytes,
         quantity: int,
         expires_at: datetime,
+        locked_product_id: bytes | None = None,
     ) -> Receipt:
         key = self._keys.keypair(prescriber).pubkey()
         address = pdas.prescription(self.program_id, prescription_id)
@@ -187,7 +269,6 @@ class SolanaLedger:
             "issue_prescription",
             {
                 "id": prescription_id,
-                "patient_id": patient_id,
                 "document_hash": document_hash,
                 "quantity": quantity,
                 "expires_at": int(expires_at.timestamp()),
@@ -195,13 +276,18 @@ class SolanaLedger:
             {
                 "prescriber_signer": key,
                 "prescriber": pdas.prescriber(self.program_id, key),
+                "medication": pdas.medication(self.program_id, medication_id),
+                "prescribed_product": locked_product_id
+                and pdas.product(self.program_id, locked_product_id),
                 "prescription": address,
             },
             signers=[prescriber],
             address=address,
         )
 
-    async def dispense(self, dispenser: str, prescription_id: bytes, quantity: int) -> Receipt:
+    async def dispense(
+        self, dispenser: str, prescription_id: bytes, product_id: bytes, quantity: int
+    ) -> Receipt:
         """Record a dispensation; if another pharmacy took the same slot first, retry.
 
         Each dispensation lives at an address derived from the prescription's
@@ -212,7 +298,7 @@ class SolanaLedger:
         """
         for attempt in range(DISPENSE_ATTEMPTS):
             try:
-                return await self._dispense_once(dispenser, prescription_id, quantity)
+                return await self._dispense_once(dispenser, prescription_id, product_id, quantity)
             except TransactionRejectedError as exc:
                 if not _slot_taken(exc) or attempt == DISPENSE_ATTEMPTS - 1:
                     raise
@@ -220,7 +306,7 @@ class SolanaLedger:
         raise AssertionError("unreachable")
 
     async def _dispense_once(
-        self, dispenser: str, prescription_id: bytes, quantity: int
+        self, dispenser: str, prescription_id: bytes, product_id: bytes, quantity: int
     ) -> Receipt:
         current = await self.prescription(prescription_id)
         if current is None:
@@ -238,6 +324,8 @@ class SolanaLedger:
                 "prescriber": pdas.prescriber(
                     self.program_id, Pubkey.from_string(current.prescriber)
                 ),
+                "medication": Pubkey.from_string(current.medication),
+                "product": pdas.product(self.program_id, product_id),
                 "dispensation": record,
             },
             signers=[dispenser],
@@ -276,7 +364,7 @@ class SolanaLedger:
             id=raw["id"],
             address=str(address),
             prescriber=raw["prescriber"],
-            patient_id=raw["patient_id"],
+            medication=raw["medication"],
             document_hash=raw["document_hash"],
             quantity_granted=raw["quantity_granted"],
             quantity_dispensed=raw["quantity_dispensed"],
@@ -284,7 +372,45 @@ class SolanaLedger:
             issued_at=_timestamp(raw["issued_at"]),
             expires_at=_timestamp(raw["expires_at"]),
             status=PrescriptionStatus(raw["status"].lower()),
+            prescribed_product=raw["prescribed_product"],
         )
+
+    async def medication(self, medication_id: bytes) -> Medication | None:
+        (entry,) = await self.catalog_entries([self.medication_address(medication_id)])
+        return entry if isinstance(entry, Medication) else None
+
+    async def product(self, product_id: bytes) -> Product | None:
+        (entry,) = await self.catalog_entries([self.product_address(product_id)])
+        return entry if isinstance(entry, Product) else None
+
+    async def catalog_entries(self, addresses: Sequence[str]) -> list[Medication | Product | None]:
+        found: list[Medication | Product | None] = []
+        keys = [Pubkey.from_string(a) for a in addresses]
+        for start in range(0, len(keys), MULTIPLE_ACCOUNTS_LIMIT):
+            chunk = keys[start : start + MULTIPLE_ACCOUNTS_LIMIT]
+            response = await self._call(self._client.get_multiple_accounts, chunk)
+            found.extend(
+                None if account is None else self._catalog_entry(address, bytes(account.data))
+                for address, account in zip(chunk, response.value, strict=True)
+            )
+        return found
+
+    def _catalog_entry(self, address: Pubkey, data: bytes) -> Medication | Product | None:
+        kind = self._idl.account_name(data)
+        if kind not in ("Medication", "Product"):
+            return None
+        raw = self._idl.decode_account(kind, data)
+        common = {
+            "address": str(address),
+            "id": raw["id"],
+            "identity_hash": raw["identity_hash"],
+            "status": CatalogStatus(raw["status"].lower()),
+            "registered_at": _timestamp(raw["registered_at"]),
+            "status_changed_at": _timestamp(raw["status_changed_at"]),
+        }
+        if kind == "Medication":
+            return Medication(**common)
+        return Product(medication=raw["medication"], **common)
 
     async def participant_status(self, role: str, participant: str) -> ParticipantStatus | None:
         key = self._keys.keypair(participant).pubkey()
@@ -318,6 +444,7 @@ class SolanaLedger:
                     prescription=raw["prescription"],
                     index=raw["index"],
                     dispenser=raw["dispenser"],
+                    product=raw["product"],
                     quantity=raw["quantity"],
                     remaining_after=raw["remaining_after"],
                     dispensed_at=_timestamp(raw["dispensed_at"]),
@@ -344,10 +471,14 @@ class SolanaLedger:
     ) -> Receipt:
         operator = self._keys.keypair(self._operator)
         named = {"payer": operator.pubkey(), "system_program": SYSTEM_PROGRAM_ID, **named}
-        metas = [
-            AccountMeta(named[slot["name"]], bool(slot.get("signer")), bool(slot.get("writable")))
-            for slot in self._idl.instruction_accounts(name)
-        ]
+        metas = []
+        for slot in self._idl.instruction_accounts(name):
+            key = named.get(slot["name"])
+            if key is None and slot.get("optional"):
+                # Anchor's convention for an absent optional account: the program id.
+                metas.append(AccountMeta(self.program_id, False, False))
+                continue
+            metas.append(AccountMeta(key, bool(slot.get("signer")), bool(slot.get("writable"))))
         instruction = Instruction(self.program_id, self._idl.encode_instruction(name, args), metas)
 
         keypairs: list[Keypair] = [operator]

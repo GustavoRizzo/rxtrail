@@ -7,9 +7,10 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from config import container
+from records.models import CatalogMedication, CatalogProduct
 from rxtrail.domain import PrescriptionDocument, RxTrailError
 
-AUTHORITIES = ("professional-authority", "health-authority")
+AUTHORITIES = ("professional-authority", "health-authority", "catalog-authority")
 
 # Enough for setup plus a demo: each record's rent deposit is ~0.001-0.0015 SOL
 # and each transaction fee 0.000005 SOL.
@@ -34,11 +35,18 @@ class Command(BaseCommand):
                 cmd = sub.add_parser(f"{verb}-{role}", help=f"The authority {verb}s a {role}.")
                 cmd.add_argument("name")
 
+        sub.add_parser("catalog", help="List the catalog: medications, products, status.")
+
         issue = sub.add_parser("issue", help="A prescriber issues a prescription.")
         issue.add_argument("prescriber")
         issue.add_argument("--patient-document", required=True)
         issue.add_argument("--patient-name", required=True)
-        issue.add_argument("--medication", required=True)
+        issue.add_argument(
+            "--medication",
+            required=True,
+            help="Catalog name (e.g. 'Clonazepam 2 mg tablet') or id.",
+        )
+        issue.add_argument("--lock-product", default="", help="Brand or id: do not substitute.")
         issue.add_argument("--dosage", default="as directed")
         issue.add_argument("--instructions", default="")
         issue.add_argument("--quantity", type=int, required=True)
@@ -48,6 +56,7 @@ class Command(BaseCommand):
         dispense = sub.add_parser("dispense", help="A dispenser hands out medication.")
         dispense.add_argument("dispenser")
         dispense.add_argument("prescription_id", help="Hex id printed by `issue`.")
+        dispense.add_argument("product", help="Brand handed out (e.g. 'Calmazen 2 mg') or id.")
         dispense.add_argument("quantity", type=int)
 
         audit = sub.add_parser("audit", help="Verify a prescription's full history.")
@@ -129,9 +138,36 @@ class Command(BaseCommand):
     async def _reinstate_dispenser(self, name, **_):
         await self._change_status("reinstate", "dispenser", name)
 
+    async def _catalog(self, **_):
+        medications = [
+            m async for m in CatalogMedication.objects.prefetch_related("products__manufacturer")
+        ]
+        async with container.open_rxtrail() as (_app, chain):
+            addresses = [m.address for m in medications] + [
+                p.address for m in medications for p in m.products.all()
+            ]
+            entries = await chain.catalog_entries(addresses)
+        status = {a: (e.status if e else "not on chain") for a, e in zip(addresses, entries)}
+        for m in medications:
+            self.stdout.write(f"{m.name}  [{status[m.address]}]  {m.medication_id}")
+            for p in m.products.all():
+                self.stdout.write(
+                    f"  {p.brand_name} · {p.manufacturer.name} · {p.kind}  "
+                    f"[{status[p.address]}]  {p.product_id}"
+                )
+
     async def _issue(self, prescriber, quantity, days, **o):
+        name = o["medication"]
+        medication = (
+            await CatalogMedication.objects.filter(medication_id=name.lower()).afirst()
+            or await CatalogMedication.objects.filter(name__iexact=name).afirst()
+        )
+        if medication is None:
+            raise CommandError(f"no medication {name!r} in the catalog (see `rxtrail catalog`)")
         document = PrescriptionDocument(
-            medication=o["medication"],
+            medication_id=medication.medication_id,
+            medication=medication.name,
+            locked_product_id=o["lock_product"] and await _product_id(o["lock_product"]),
             dosage=o["dosage"],
             instructions=o["instructions"],
             quantity=quantity,
@@ -147,10 +183,11 @@ class Command(BaseCommand):
         self.stdout.write(f"  on-chain at {issued.receipt.address}")
         self.stdout.write(f"  document hash {issued.document_hash.hex()}")
 
-    async def _dispense(self, dispenser, prescription_id, quantity, **_):
+    async def _dispense(self, dispenser, prescription_id, product, quantity, **_):
         prescription = bytes.fromhex(prescription_id)
+        product_id = bytes.fromhex(await _product_id(product))
         async with container.open_rxtrail() as (app, chain):
-            receipt = await app.dispense(dispenser, prescription, quantity)
+            receipt = await app.dispense(dispenser, prescription, product_id, quantity)
             remaining = (await chain.prescription(prescription)).remaining
         self.stdout.write(f"dispensed {quantity}; {remaining} remain. record: {receipt.address}")
 
@@ -176,3 +213,13 @@ class Command(BaseCommand):
         else:
             for problem in trail.problems:
                 self.stdout.write(self.style.ERROR(f"  ! {problem}"))
+
+
+async def _product_id(brand_or_id: str) -> str:
+    product = (
+        await CatalogProduct.objects.filter(product_id=brand_or_id.lower()).afirst()
+        or await CatalogProduct.objects.filter(brand_name__iexact=brand_or_id).afirst()
+    )
+    if product is None:
+        raise CommandError(f"no product {brand_or_id!r} in the catalog (see `rxtrail catalog`)")
+    return product.product_id

@@ -1,8 +1,12 @@
 //! On-chain records.
 //!
-//! No personal data lives here: prescriptions and patients are identified by
-//! random 32-byte ids, and the full prescription document stays off-chain,
-//! represented only by its salted hash.
+//! No personal data lives here: prescriptions are identified by random 32-byte
+//! ids, nothing identifies the patient, and the full prescription document
+//! stays off-chain, represented only by its salted hash.
+//!
+//! Only what a rule needs, or what must never be rewritten, is stored. The
+//! catalog's names, classes and dosage guidance live off-chain, published as
+//! open data; each catalog record pins its meaning with an identity hash.
 
 use anchor_lang::prelude::*;
 
@@ -14,6 +18,8 @@ pub struct Config {
     pub professional_authority: Pubkey,
     /// Enables dispensers (e.g. a health regulator).
     pub health_authority: Pubkey,
+    /// Registers and withdraws medications and products (e.g. a drug regulator).
+    pub catalog_authority: Pubkey,
     pub bump: u8,
 }
 
@@ -50,6 +56,48 @@ pub struct Dispenser {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
+pub enum CatalogStatus {
+    Active,
+    /// Recalled: nothing new may be prescribed or dispensed against it.
+    Withdrawn,
+}
+
+/// A medication in the catalog: an active ingredient, strength and form
+/// (e.g. clonazepam 2 mg tablet). What a prescriber prescribes.
+#[account]
+#[derive(InitSpace)]
+pub struct Medication {
+    /// Random id; also the PDA seed.
+    pub id: [u8; 32],
+    /// sha256 of the fields that define the medication, as published in the
+    /// off-chain catalog. Written once: the meaning of this record can never
+    /// be rewritten, while names and guidance stay off-chain.
+    pub identity_hash: [u8; 32],
+    pub status: CatalogStatus,
+    pub registered_at: i64,
+    /// When the status last changed (registration, withdrawal, reinstatement).
+    pub status_changed_at: i64,
+    pub bump: u8,
+}
+
+/// A medication as one manufacturer makes it: the box a pharmacy hands out.
+#[account]
+#[derive(InitSpace)]
+pub struct Product {
+    /// Random id; also the PDA seed.
+    pub id: [u8; 32],
+    /// The medication this product is a version of.
+    pub medication: Pubkey,
+    /// sha256 of the fields that define the product (medication, manufacturer,
+    /// brand, kind). Written once.
+    pub identity_hash: [u8; 32],
+    pub status: CatalogStatus,
+    pub registered_at: i64,
+    pub status_changed_at: i64,
+    pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
 pub enum PrescriptionStatus {
     Active,
 }
@@ -65,8 +113,8 @@ pub struct Prescription {
     pub id: [u8; 32],
     /// Key of the prescriber who signed it.
     pub prescriber: Pubkey,
-    /// Random patient id. Never derived from a real-world document.
-    pub patient_id: [u8; 32],
+    /// The catalog medication prescribed (its account address).
+    pub medication: Pubkey,
     /// Salted hash of the full off-chain prescription document: proves the
     /// document was not altered after issuance, without revealing it.
     pub document_hash: [u8; 32],
@@ -77,6 +125,10 @@ pub struct Prescription {
     pub issued_at: i64,
     pub expires_at: i64,
     pub status: PrescriptionStatus,
+    /// Set when the prescriber locked a product ("do not substitute"): only
+    /// that one may be dispensed. Last, so the fixed-size fields before it keep
+    /// fixed offsets for filtered queries.
+    pub prescribed_product: Option<Pubkey>,
     pub bump: u8,
 }
 
@@ -95,6 +147,8 @@ pub struct Dispensation {
     pub index: u32,
     /// Key of the dispenser who signed it.
     pub dispenser: Pubkey,
+    /// The product handed out (its account address).
+    pub product: Pubkey,
     pub quantity: u32,
     /// Remaining quantity right after this dispensation.
     pub remaining_after: u32,

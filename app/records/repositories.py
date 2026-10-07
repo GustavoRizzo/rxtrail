@@ -1,7 +1,16 @@
-"""Django adapters for the domain's DocumentVault and PatientDirectory ports."""
+"""Django adapters for the domain's DocumentVault, PatientDirectory and
+CatalogDirectory ports."""
 
-from records.models import Patient, PrescriptionRecord
-from rxtrail.domain import PrescriptionDocument, new_id
+from records.models import (
+    CatalogMedication,
+    CatalogProduct,
+    Manufacturer,
+    Patient,
+    PrescriptionRecord,
+)
+from rxtrail.domain import MedicationDetails, PrescriptionDocument, ProductDetails, new_id
+
+_MEDICATION_FIELDS = MedicationDetails.__slots__
 
 
 class DjangoPatientDirectory:
@@ -38,3 +47,48 @@ class DjangoDocumentVault:
         if record is None:
             return None
         return PrescriptionDocument(**record.document), bytes.fromhex(record.salt)
+
+
+class DjangoCatalog:
+    async def add_medication(
+        self, medication_id: bytes, address: str, details: MedicationDetails, identity_hash: bytes
+    ) -> None:
+        await CatalogMedication.objects.acreate(
+            medication_id=medication_id.hex(),
+            address=address,
+            identity_hash=identity_hash.hex(),
+            **{field: getattr(details, field) for field in _MEDICATION_FIELDS},
+        )
+
+    async def add_product(
+        self, product_id: bytes, address: str, details: ProductDetails, identity_hash: bytes
+    ) -> None:
+        medication = await CatalogMedication.objects.aget(medication_id=details.medication_id)
+        manufacturer, _ = await Manufacturer.objects.aget_or_create(name=details.manufacturer)
+        await CatalogProduct.objects.acreate(
+            product_id=product_id.hex(),
+            address=address,
+            identity_hash=identity_hash.hex(),
+            medication=medication,
+            manufacturer=manufacturer,
+            brand_name=details.brand_name,
+            kind=details.kind,
+        )
+
+    async def medication(self, medication_id: bytes) -> MedicationDetails | None:
+        record = await CatalogMedication.objects.filter(medication_id=medication_id.hex()).afirst()
+        return None if record is None else medication_details(record)
+
+
+def medication_details(record: CatalogMedication) -> MedicationDetails:
+    return MedicationDetails(**{field: getattr(record, field) for field in _MEDICATION_FIELDS})
+
+
+def product_details(record: CatalogProduct) -> ProductDetails:
+    """Needs `medication` and `manufacturer` loaded (select_related)."""
+    return ProductDetails(
+        medication_id=record.medication.medication_id,
+        manufacturer=record.manufacturer.name,
+        brand_name=record.brand_name,
+        kind=record.kind,
+    )

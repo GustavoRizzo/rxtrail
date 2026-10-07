@@ -1,7 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from web import views
+from web import catalog_views, views
 
 app_name = "web"
 urlpatterns = [
@@ -18,5 +18,14 @@ urlpatterns = [
     path("authority/enable/", views.enable_participant, name="enable"),
     path("authority/status/", views.set_status, name="set_status"),
     path("auditor/", views.auditor, name="auditor"),
+    path("catalog/", catalog_views.public_catalog, name="catalog"),
+    path("catalog.json", catalog_views.catalog_json, name="catalog_json"),
+    path("catalog/search/", catalog_views.catalog_search, name="catalog_search"),
+    path("catalog-office/", catalog_views.catalog_office, name="catalog_office"),
+    path(
+        "catalog-office/medication/", catalog_views.register_medication, name="register_medication"
+    ),
+    path("catalog-office/product/", catalog_views.register_product, name="register_product"),
+    path("catalog-office/status/", catalog_views.set_catalog_status, name="set_catalog_status"),
     path("styleguide/", views.styleguide, name="styleguide"),
 ]

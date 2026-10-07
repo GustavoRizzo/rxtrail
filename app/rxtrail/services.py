@@ -4,16 +4,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from rxtrail import documents, rules
+from rxtrail import catalog, documents, rules
 from rxtrail.domain import (
     AuditTrail,
+    CatalogStatus,
+    Medication,
+    MedicationDetails,
     NotFoundError,
     ParticipantStatus,
     PrescriptionDocument,
+    ProductDetails,
     Receipt,
     new_id,
 )
-from rxtrail.ports import DocumentVault, PatientDirectory, PrescriptionLedger
+from rxtrail.ports import CatalogDirectory, DocumentVault, PatientDirectory, PrescriptionLedger
 
 
 def _now() -> datetime:
@@ -28,19 +32,30 @@ class IssuedPrescription:
     receipt: Receipt
 
 
+@dataclass(frozen=True, slots=True)
+class CatalogEntry:
+    """A medication or product just registered: its id and the transaction."""
+
+    id: bytes
+    identity_hash: bytes
+    receipt: Receipt
+
+
 class RxTrail:
-    """The application: every use case, over the three ports."""
+    """The application: every use case, over the four ports."""
 
     def __init__(
         self,
         ledger: PrescriptionLedger,
         vault: DocumentVault,
         patients: PatientDirectory,
+        catalog: CatalogDirectory,
         now: Callable[[], datetime] = _now,
     ):
         self._ledger = ledger
         self._vault = vault
         self._patients = patients
+        self._catalog = catalog
         self._now = now
 
     # -- setup by the authorities ------------------------------------------
@@ -73,6 +88,46 @@ class RxTrail:
             authority, dispenser, ParticipantStatus.ACTIVE
         )
 
+    # -- catalog authority -----------------------------------------------------
+
+    async def register_medication(self, authority: str, details: MedicationDetails) -> CatalogEntry:
+        """Off-chain record first (an orphan is harmless), then the on-chain
+        record that pins its meaning."""
+        medication_id = new_id()
+        digest = catalog.identity_hash(details)
+        address = self._ledger.medication_address(medication_id)
+        await self._catalog.add_medication(medication_id, address, details, digest)
+        receipt = await self._ledger.register_medication(authority, medication_id, digest)
+        return CatalogEntry(medication_id, digest, receipt)
+
+    async def register_product(self, authority: str, details: ProductDetails) -> CatalogEntry:
+        product_id = new_id()
+        digest = catalog.identity_hash(details)
+        address = self._ledger.product_address(product_id)
+        await self._catalog.add_product(product_id, address, details, digest)
+        receipt = await self._ledger.register_product(
+            authority, product_id, bytes.fromhex(details.medication_id), digest
+        )
+        return CatalogEntry(product_id, digest, receipt)
+
+    async def withdraw_medication(self, authority: str, medication_id: bytes) -> Receipt:
+        """Recall: no new prescriptions, and every existing one is frozen."""
+        return await self._ledger.set_medication_status(
+            authority, medication_id, CatalogStatus.WITHDRAWN
+        )
+
+    async def reinstate_medication(self, authority: str, medication_id: bytes) -> Receipt:
+        return await self._ledger.set_medication_status(
+            authority, medication_id, CatalogStatus.ACTIVE
+        )
+
+    async def withdraw_product(self, authority: str, product_id: bytes) -> Receipt:
+        """Recall one product: pharmacies hand out another version instead."""
+        return await self._ledger.set_product_status(authority, product_id, CatalogStatus.WITHDRAWN)
+
+    async def reinstate_product(self, authority: str, product_id: bytes) -> Receipt:
+        return await self._ledger.set_product_status(authority, product_id, CatalogStatus.ACTIVE)
+
     # -- prescriber ----------------------------------------------------------
 
     async def issue(
@@ -82,9 +137,18 @@ class RxTrail:
         document: PrescriptionDocument,
         valid_for: timedelta,
     ) -> IssuedPrescription:
-        """Issue a prescription: hash on-chain, document and identity off-chain."""
+        """Issue a prescription: hash on-chain, document and identity off-chain.
+
+        Nothing about the patient goes on-chain, not even a pseudonym.
+        """
         expires_at = self._now() + valid_for
-        rules.check_issue(document.quantity, expires_at, self._now())
+        medication_id = bytes.fromhex(document.medication_id)
+        locked_id = bytes.fromhex(document.locked_product_id) or None
+        medication = await self._ledger.medication(medication_id)
+        locked = await self._ledger.product(locked_id) if locked_id else None
+        if locked_id and locked is None:
+            raise NotFoundError("no such product in the catalog")
+        rules.check_issue(document.quantity, expires_at, self._now(), medication, locked)
 
         patient_id = await self._patients.patient_id_for(
             patient_document_number, document.patient_name
@@ -98,13 +162,21 @@ class RxTrail:
         # verified again.
         await self._vault.store(prescription_id, patient_id, prescriber, document, salt)
         receipt = await self._ledger.issue_prescription(
-            prescriber, prescription_id, patient_id, digest, document.quantity, expires_at
+            prescriber,
+            prescription_id,
+            medication_id,
+            digest,
+            document.quantity,
+            expires_at,
+            locked_id,
         )
         return IssuedPrescription(prescription_id, patient_id, digest, receipt)
 
     # -- dispenser -------------------------------------------------------------
 
-    async def dispense(self, dispenser: str, prescription_id: bytes, quantity: int) -> Receipt:
+    async def dispense(
+        self, dispenser: str, prescription_id: bytes, product_id: bytes, quantity: int
+    ) -> Receipt:
         """Check the rules locally for a clear message; the program decides.
 
         The local check is a double check only. If it passes and the program
@@ -113,8 +185,14 @@ class RxTrail:
         prescription = await self._ledger.prescription(prescription_id)
         if prescription is None:
             raise NotFoundError(f"no prescription {prescription_id.hex()}")
-        rules.check_dispense(prescription, quantity, self._now())
-        return await self._ledger.dispense(dispenser, prescription_id, quantity)
+        medication = await self._medication_at(prescription.medication)
+        product = await self._ledger.product(product_id)
+        rules.check_dispense(prescription, quantity, self._now(), medication, product)
+        return await self._ledger.dispense(dispenser, prescription_id, product_id, quantity)
+
+    async def _medication_at(self, address: str) -> Medication | None:
+        (entry,) = await self._ledger.catalog_entries([address])
+        return entry if isinstance(entry, Medication) else None
 
     # -- anyone ------------------------------------------------------------------
 
@@ -155,4 +233,7 @@ class RxTrail:
             verified = documents.verify(document, salt, prescription.document_hash)
             if not verified:
                 problems.append("off-chain document does not match the on-chain hash")
-        return AuditTrail(prescription, dispensations, verified, problems)
+        medication = await self._medication_at(prescription.medication)
+        return AuditTrail(
+            prescription, dispensations, verified, problems=problems, medication=medication
+        )

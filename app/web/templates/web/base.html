@@ -10,11 +10,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
+  {# Before Alpine: deferred scripts run in order, and Alpine starts at once. #}
+  <script src="{% static 'web/rxtrail.js' %}" defer></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@1.52.0/dist/umd/lucide.min.js"></script>
   {% include "web/_theme.html" %}
   <link rel="stylesheet" href="{% static 'web/rxtrail.css' %}">
-  <script src="{% static 'web/rxtrail.js' %}" defer></script>
 </head>
 <body class="rx-backdrop min-h-full text-slate-200 antialiased">
   <header class="sticky top-0 z-40 border-b border-white/5 bg-surface/70 backdrop-blur-xl">
@@ -28,6 +29,7 @@
         Solana {{ settings_network }}
       </span>
       <div class="ml-auto flex items-center gap-3 text-sm">
+        <a href="{% url 'web:catalog' %}" class="hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-slate-400 transition hover:bg-white/5 hover:text-slate-100 md:flex"><i data-lucide="library-big" class="h-4 w-4"></i> Catalog</a>
         {% if user.is_authenticated and user.participant %}
           <a href="{% url 'web:home' %}" class="hidden items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 sm:flex">
             <i data-lucide="{{ role_icon }}" class="h-4 w-4 text-brand-primary"></i>
@@ -54,6 +56,8 @@
            class="rx-toast rx-card flex items-start gap-3 p-4 text-sm shadow-2xl">
         {% if message.tags == "error" %}
           <i data-lucide="octagon-x" class="mt-0.5 h-5 w-5 shrink-0 text-danger"></i>
+        {% elif message.tags == "warning" %}
+          <i data-lucide="triangle-alert" class="mt-0.5 h-5 w-5 shrink-0 text-brand-secondary"></i>
         {% else %}
           <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-brand-accent"></i>
         {% endif %}

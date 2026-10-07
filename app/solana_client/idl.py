@@ -1,8 +1,9 @@
 """Encode instructions and decode accounts using the program's Anchor IDL.
 
 Anchor serializes with Borsh: little-endian integers, 32-byte public keys,
-fixed arrays as raw bytes, unit enums as a one-byte variant index. Every
-instruction and account starts with an 8-byte discriminator.
+fixed arrays as raw bytes, unit enums as a one-byte variant index, options as
+a 0/1 byte followed by the value when present. Every instruction and account
+starts with an 8-byte discriminator.
 """
 
 import json
@@ -48,6 +49,13 @@ class Idl:
     def account_discriminator(self, name: str) -> bytes:
         return bytes(self._accounts[name]["discriminator"])
 
+    def account_name(self, data: bytes) -> str | None:
+        """Which account type these bytes are, by their discriminator."""
+        for name, account in self._accounts.items():
+            if data[:8] == bytes(account["discriminator"]):
+                return name
+        return None
+
     def decode_account(self, name: str, data: bytes) -> dict[str, Any]:
         expected = self.account_discriminator(name)
         if data[:8] != expected:
@@ -63,6 +71,8 @@ class Idl:
     # -- borsh ------------------------------------------------------------------
 
     def _encode(self, kind, value) -> bytes:
+        if isinstance(kind, dict) and "option" in kind:
+            return b"\x00" if value is None else b"\x01" + self._encode(kind["option"], value)
         if kind == "pubkey":
             return bytes(value if isinstance(value, Pubkey) else Pubkey.from_string(value))
         if isinstance(kind, str) and kind in _INTS:
@@ -80,6 +90,10 @@ class Idl:
         raise NotImplementedError(f"encoding {kind}")
 
     def _decode(self, kind, data: bytes, offset: int) -> tuple[Any, int]:
+        if isinstance(kind, dict) and "option" in kind:
+            if data[offset] == 0:
+                return None, offset + 1
+            return self._decode(kind["option"], data, offset + 1)
         if kind == "pubkey":
             return str(Pubkey.from_bytes(data[offset : offset + 32])), offset + 32
         if isinstance(kind, str) and kind in _INTS:

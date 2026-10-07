@@ -90,6 +90,8 @@ body {
   opacity: 1; /* Firefox dims placeholders on its own; the token decides */
 }
 
+/* A button that opens a picker, styled as a field: empty reads like a placeholder. */
+.rx-input.is-empty { color: var(--placeholder); font-weight: 400; }
 .rx-input:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--brand-primary) 70%, transparent);

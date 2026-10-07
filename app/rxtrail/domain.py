@@ -20,6 +20,20 @@ class PrescriptionStatus(StrEnum):
     ACTIVE = "active"
 
 
+class CatalogStatus(StrEnum):
+    ACTIVE = "active"
+    WITHDRAWN = "withdrawn"  # recalled: nothing new is prescribed or dispensed
+
+
+class ProductKind(StrEnum):
+    """How a product relates to the original drug (Brazil: referência,
+    genérico, similar). What the generic-substitution indicators look at."""
+
+    REFERENCE = "reference"
+    GENERIC = "generic"
+    SIMILAR = "similar"
+
+
 class Standing(StrEnum):
     """Where a prescription stands for the people using it, at a given moment.
 
@@ -39,7 +53,7 @@ class Prescription:
     id: bytes
     address: str
     prescriber: str
-    patient_id: bytes
+    medication: str  # address of the catalog medication
     document_hash: bytes
     quantity_granted: int
     quantity_dispensed: int
@@ -47,6 +61,8 @@ class Prescription:
     issued_at: datetime
     expires_at: datetime
     status: PrescriptionStatus
+    # Address of the product the prescriber locked ("do not substitute"), if any.
+    prescribed_product: str | None = None
 
     @property
     def remaining(self) -> int:
@@ -68,9 +84,70 @@ class Dispensation:
     prescription: str
     index: int
     dispenser: str
+    product: str  # address of the catalog product handed out
     quantity: int
     remaining_after: int
     dispensed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class Medication:
+    """A catalog medication as recorded on-chain: only what a rule needs.
+
+    Its name and guidance live in the off-chain catalog (MedicationDetails);
+    the identity hash pins which catalog record this one stands for.
+    """
+
+    address: str
+    id: bytes
+    identity_hash: bytes
+    status: CatalogStatus
+    registered_at: datetime
+    status_changed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class Product:
+    """A catalog product (one manufacturer's version of a medication), on-chain."""
+
+    address: str
+    id: bytes
+    medication: str  # address of the medication it is a version of
+    identity_hash: bytes
+    status: CatalogStatus
+    registered_at: datetime
+    status_changed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class MedicationDetails:
+    """A medication in the off-chain, public catalog.
+
+    Active ingredient, strength and form define it (see catalog.identity_hash)
+    and never change; the rest is guidance that may.
+    """
+
+    name: str  # e.g. "Clonazepam 2 mg tablet"
+    active_ingredient: str
+    strength: str
+    form: str
+    atc_code: str = ""  # WHO therapeutic classification, e.g. N03AE01
+    unit: str = "unit"  # what one unit of the granted quantity is: tablet, ampoule...
+    regulatory_list: str = ""  # local control list, e.g. B1 in Brazil
+    dosage_guidance: str = ""
+    usual_max_daily_units: int | None = None
+    max_quantity: int | None = None  # regulatory limit per prescription: warns
+    max_validity_days: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProductDetails:
+    """A product in the off-chain, public catalog. Every field defines it."""
+
+    medication_id: str  # hex id of the medication it is a version of
+    manufacturer: str
+    brand_name: str
+    kind: ProductKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,13 +162,15 @@ class Receipt:
 class PrescriptionDocument:
     """The full prescription, kept off-chain. Only its salted hash goes on-chain."""
 
-    medication: str
+    medication_id: str  # hex id of the catalog medication, also on-chain
+    medication: str  # its name when issued, as the prescriber saw it
     dosage: str
     instructions: str
     quantity: int
     prescriber_name: str
     patient_name: str
     issued_on: str  # ISO date, as written on the paper prescription
+    locked_product_id: str = ""  # hex id of the locked product; empty: any version
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,11 +180,17 @@ class AuditTrail:
     prescription: Prescription
     dispensations: list[Dispensation]
     document_verified: bool | None  # None: the off-chain document is not available here
+    medication: Medication | None = None  # None: the prescribed medication was not found
     problems: list[str] = field(default_factory=list)
 
     @property
     def consistent(self) -> bool:
         return not self.problems
+
+    @property
+    def frozen(self) -> bool:
+        """The medication was withdrawn: nothing more can be dispensed for now."""
+        return self.medication is not None and self.medication.status is CatalogStatus.WITHDRAWN
 
 
 # ----------------------------------------------------------------- errors ----
@@ -160,6 +245,26 @@ class QuantityExceedsRemainingError(RxTrailError):
     pass
 
 
+class NotCatalogAuthorityError(RxTrailError):
+    pass
+
+
+class MedicationNotActiveError(RxTrailError):
+    pass
+
+
+class ProductNotActiveError(RxTrailError):
+    pass
+
+
+class ProductMedicationMismatchError(RxTrailError):
+    pass
+
+
+class PrescribedProductMismatchError(RxTrailError):
+    pass
+
+
 class NotRegisteredError(RxTrailError):
     """The signer has no participant record on-chain (Anchor: AccountNotInitialized)."""
 
@@ -201,4 +306,9 @@ PROGRAM_ERRORS: dict[str, type[RxTrailError]] = {
     "PrescriptionExpired": PrescriptionExpiredError,
     "PrescriptionNotActive": PrescriptionNotActiveError,
     "QuantityExceedsRemaining": QuantityExceedsRemainingError,
+    "NotCatalogAuthority": NotCatalogAuthorityError,
+    "MedicationNotActive": MedicationNotActiveError,
+    "ProductNotActive": ProductNotActiveError,
+    "ProductMedicationMismatch": ProductMedicationMismatchError,
+    "PrescribedProductMismatch": PrescribedProductMismatchError,
 }

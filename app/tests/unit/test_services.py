@@ -4,15 +4,33 @@ from datetime import timedelta
 
 import pytest
 
-from rxtrail import documents
+from rxtrail import catalog, documents
 from rxtrail.domain import (
+    CatalogStatus,
     ExpiryInThePastError,
+    MedicationDetails,
+    MedicationNotActiveError,
     NotFoundError,
     NotRegisteredError,
+    PrescribedProductMismatchError,
+    ProductDetails,
+    ProductKind,
+    ProductNotActiveError,
     QuantityExceedsRemainingError,
 )
 from rxtrail.services import RxTrail
-from tests.fakes import T0, FakeLedger, FakePatients, FakeVault, a_document
+from tests.fakes import (
+    GENERIC_ID,
+    MEDICATION_ID,
+    REFERENCE_ID,
+    T0,
+    FakeCatalog,
+    FakeLedger,
+    FakePatients,
+    FakeVault,
+    a_document,
+    product_address,
+)
 
 
 @pytest.fixture
@@ -29,12 +47,21 @@ def vault():
 
 
 @pytest.fixture
-def app(ledger, vault):
-    return RxTrail(ledger, vault, FakePatients(), now=lambda: T0)
+def directory():
+    return FakeCatalog()
 
 
-async def issue(app, quantity=30):
-    return await app.issue("dr-ana", "123", a_document(quantity), timedelta(days=30))
+@pytest.fixture
+def app(ledger, vault, directory):
+    return RxTrail(ledger, vault, FakePatients(), directory, now=lambda: T0)
+
+
+async def issue(app, quantity=30, **changes):
+    return await app.issue("dr-ana", "123", a_document(quantity, **changes), timedelta(days=30))
+
+
+async def dispense(app, prescription_id, quantity, product=REFERENCE_ID):
+    return await app.dispense("pharmacy-one", prescription_id, product, quantity)
 
 
 async def test_issuing_puts_the_hash_on_chain_and_the_document_off_chain(app, ledger, vault):
@@ -43,7 +70,9 @@ async def test_issuing_puts_the_hash_on_chain_and_the_document_off_chain(app, le
     on_chain = ledger.prescriptions[issued.prescription_id]
     patient_id, document, salt = vault.documents[issued.prescription_id]
     assert on_chain.document_hash == documents.document_hash(document, salt)
-    assert on_chain.patient_id == patient_id == issued.patient_id
+    assert patient_id == issued.patient_id  # off-chain only: nothing on-chain names the patient
+    assert patient_id not in repr(on_chain).encode()
+    assert on_chain.medication == ledger.medication_address(MEDICATION_ID)
     assert on_chain.quantity_granted == 30
     assert on_chain.expires_at == T0 + timedelta(days=30)
 
@@ -64,28 +93,28 @@ async def test_an_invalid_prescription_never_reaches_the_chain(app, ledger, vaul
 
 async def test_dispensing_past_the_remainder_is_refused_before_sending(app, ledger):
     issued = await issue(app, quantity=30)
-    await app.dispense("pharmacy-one", issued.prescription_id, 20)
+    await dispense(app, issued.prescription_id, 20)
 
     with pytest.raises(QuantityExceedsRemainingError):
-        await app.dispense("pharmacy-one", issued.prescription_id, 11)
+        await dispense(app, issued.prescription_id, 11)
     assert ledger.calls.count("dispense") == 1  # the refused one was never sent
 
 
 async def test_refusals_from_the_chain_reach_the_caller(app, ledger):
     issued = await issue(app)
     with pytest.raises(NotRegisteredError):
-        await app.dispense("unknown-pharmacy", issued.prescription_id, 1)
+        await app.dispense("unknown-pharmacy", issued.prescription_id, REFERENCE_ID, 1)
 
 
 async def test_dispensing_an_unknown_prescription(app):
     with pytest.raises(NotFoundError):
-        await app.dispense("pharmacy-one", b"\x09" * 32, 1)
+        await dispense(app, b"\x09" * 32, 1)
 
 
 async def test_the_audit_trail_of_a_consistent_history(app):
     issued = await issue(app, quantity=30)
-    await app.dispense("pharmacy-one", issued.prescription_id, 20)
-    await app.dispense("pharmacy-one", issued.prescription_id, 10)
+    await dispense(app, issued.prescription_id, 20)
+    await dispense(app, issued.prescription_id, 10)
 
     trail = await app.audit(issued.prescription_id)
 
@@ -117,7 +146,7 @@ async def test_the_audit_without_the_document_still_checks_the_chain(app, vault)
 
 async def test_the_audit_catches_a_missing_dispensation(app, ledger):
     issued = await issue(app)
-    await app.dispense("pharmacy-one", issued.prescription_id, 5)
+    await dispense(app, issued.prescription_id, 5)
     ledger.dispensed[issued.prescription_id].clear()
 
     trail = await app.audit(issued.prescription_id)
@@ -136,7 +165,7 @@ async def test_a_chain_refusal_the_rules_did_not_foresee_is_still_an_error(app, 
     ledger.dispense = refuses  # the local check passes; the program says no
 
     with pytest.raises(TransactionRejectedError):
-        await app.dispense("pharmacy-one", issued.prescription_id, 1)
+        await dispense(app, issued.prescription_id, 1)
 
 
 async def test_a_suspended_prescriber_is_refused_by_the_ledger(app, ledger):
@@ -147,3 +176,79 @@ async def test_a_suspended_prescriber_is_refused_by_the_ledger(app, ledger):
 
     await app.reinstate_prescriber("professional-authority", "dr-ana")
     await issue(app)
+
+
+# -- catalog and recall ------------------------------------------------------------
+
+CLONAZEPAM = MedicationDetails("Clonazepam 0.5 mg tablet", "clonazepam", "0.5 mg", "tablet")
+
+
+async def test_registering_pins_the_catalog_record_on_chain(app, ledger, directory):
+    entry = await app.register_medication("catalog-authority", CLONAZEPAM)
+
+    address, details, digest = directory.medications[entry.id]
+    on_chain = await ledger.medication(entry.id)
+    assert details == CLONAZEPAM
+    assert digest == entry.identity_hash == on_chain.identity_hash
+    assert digest == catalog.identity_hash(CLONAZEPAM)
+    assert address == on_chain.address == entry.receipt.address
+
+
+async def test_a_product_is_registered_as_a_version_of_its_medication(app, ledger):
+    medication = await app.register_medication("catalog-authority", CLONAZEPAM)
+    details = ProductDetails(medication.id.hex(), "Beta Labs", "Clona Beta", ProductKind.GENERIC)
+
+    product = await app.register_product("catalog-authority", details)
+
+    assert (await ledger.product(product.id)).medication == ledger.medication_address(medication.id)
+
+
+async def test_issuing_for_a_withdrawn_medication_never_reaches_the_chain(app, ledger):
+    await app.withdraw_medication("catalog-authority", MEDICATION_ID)
+
+    with pytest.raises(MedicationNotActiveError):
+        await issue(app)
+    assert "issue" not in ledger.calls
+
+
+async def test_a_product_recall_sends_the_pharmacy_to_another_version(app, ledger):
+    issued = await issue(app)
+    await app.withdraw_product("catalog-authority", REFERENCE_ID)
+
+    with pytest.raises(ProductNotActiveError):
+        await dispense(app, issued.prescription_id, 5)
+    await dispense(app, issued.prescription_id, 5, product=GENERIC_ID)
+
+    await app.reinstate_product("catalog-authority", REFERENCE_ID)
+    await dispense(app, issued.prescription_id, 5)
+    assert ledger.prescriptions[issued.prescription_id].quantity_dispensed == 10
+
+
+async def test_withdrawing_the_medication_freezes_the_prescription(app):
+    issued = await issue(app)
+    await dispense(app, issued.prescription_id, 10)
+
+    await app.withdraw_medication("catalog-authority", MEDICATION_ID)
+    with pytest.raises(MedicationNotActiveError):
+        await dispense(app, issued.prescription_id, 5, product=GENERIC_ID)
+    assert (await app.audit(issued.prescription_id)).frozen
+
+    await app.reinstate_medication("catalog-authority", MEDICATION_ID)
+    trail = await app.audit(issued.prescription_id)
+    assert not trail.frozen and trail.medication.status is CatalogStatus.ACTIVE
+
+
+async def test_a_locked_product_is_the_only_one_dispensable(app, ledger):
+    issued = await issue(app, locked_product_id=REFERENCE_ID.hex())
+
+    assert ledger.prescriptions[issued.prescription_id].prescribed_product == product_address(
+        REFERENCE_ID
+    )
+    with pytest.raises(PrescribedProductMismatchError):
+        await dispense(app, issued.prescription_id, 1, product=GENERIC_ID)
+    await dispense(app, issued.prescription_id, 1)
+
+
+async def test_locking_an_unknown_product_is_refused(app):
+    with pytest.raises(NotFoundError):
+        await issue(app, locked_product_id=(b"\xee" * 32).hex())

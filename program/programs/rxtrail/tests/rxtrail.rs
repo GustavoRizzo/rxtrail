@@ -10,8 +10,12 @@ use {
     litesvm::LiteSVM,
     rxtrail::{
         error::RxTrailError,
-        state::{Dispensation, Dispenser, ParticipantStatus, Prescriber, Prescription},
-        CONFIG_SEED, DISPENSATION_SEED, DISPENSER_SEED, PRESCRIBER_SEED, PRESCRIPTION_SEED,
+        state::{
+            CatalogStatus, Dispensation, Dispenser, Medication, ParticipantStatus, Prescriber,
+            Prescription, Product,
+        },
+        CONFIG_SEED, DISPENSATION_SEED, DISPENSER_SEED, MEDICATION_SEED, PRESCRIBER_SEED,
+        PRESCRIPTION_SEED, PRODUCT_SEED,
     },
     solana_keypair::Keypair,
     solana_message::{Message, VersionedMessage},
@@ -21,15 +25,19 @@ use {
 
 const DAY: i64 = 86_400;
 
-/// A fresh chain with the program deployed, both authorities configured, one
-/// prescriber and one dispenser enabled.
+/// A fresh chain with the program deployed, the three authorities configured,
+/// one prescriber and one dispenser enabled, and one medication in the catalog
+/// with one product.
 struct Env {
     svm: LiteSVM,
     operator: Keypair,
     professional_authority: Keypair,
     health_authority: Keypair,
+    catalog_authority: Keypair,
     prescriber: Keypair,
     dispenser: Keypair,
+    medication: [u8; 32],
+    product: [u8; 32],
     next_id: u8,
 }
 
@@ -51,6 +59,14 @@ fn dispenser_pda(key: &Pubkey) -> Pubkey {
 
 fn prescription_pda(id: &[u8; 32]) -> Pubkey {
     pda(&[PRESCRIPTION_SEED, id])
+}
+
+fn medication_pda(id: &[u8; 32]) -> Pubkey {
+    pda(&[MEDICATION_SEED, id])
+}
+
+fn product_pda(id: &[u8; 32]) -> Pubkey {
+    pda(&[PRODUCT_SEED, id])
 }
 
 fn dispensation_pda(prescription: &Pubkey, index: u32) -> Pubkey {
@@ -80,8 +96,11 @@ impl Env {
             operator: Keypair::new(),
             professional_authority: Keypair::new(),
             health_authority: Keypair::new(),
+            catalog_authority: Keypair::new(),
             prescriber: Keypair::new(),
             dispenser: Keypair::new(),
+            medication: [0; 32],
+            product: [0; 32],
             next_id: 0,
         };
         // Only the operator holds SOL: it pays every fee and every rent deposit.
@@ -95,6 +114,9 @@ impl Env {
         env.register_prescriber(&prescriber).unwrap();
         let dispenser = env.dispenser.pubkey();
         env.register_dispenser(&dispenser).unwrap();
+        env.medication = env.register_medication().unwrap();
+        let medication = env.medication;
+        env.product = env.register_product(&medication).unwrap();
         env
     }
 
@@ -138,6 +160,7 @@ impl Env {
             &rxtrail::instruction::Initialize {
                 professional_authority: self.professional_authority.pubkey(),
                 health_authority: self.health_authority.pubkey(),
+                catalog_authority: self.catalog_authority.pubkey(),
             }
             .data(),
             rxtrail::accounts::Initialize {
@@ -211,18 +234,134 @@ impl Env {
         [self.next_id; 32]
     }
 
-    fn issue_by(
+    // -- catalog ---------------------------------------------------------------
+
+    fn register_medication_signed_by(&mut self, authority: &Keypair) -> Result<[u8; 32], String> {
+        let id = self.new_id();
+        let ix = Instruction::new_with_bytes(
+            rxtrail::id(),
+            &rxtrail::instruction::RegisterMedication {
+                id,
+                identity_hash: [0xab; 32],
+            }
+            .data(),
+            rxtrail::accounts::RegisterMedication {
+                payer: self.operator.pubkey(),
+                catalog_authority: authority.pubkey(),
+                config: config_pda(),
+                medication: medication_pda(&id),
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, &[authority]).map(|_| id)
+    }
+
+    fn register_medication(&mut self) -> Result<[u8; 32], String> {
+        let authority = self.catalog_authority.insecure_clone();
+        self.register_medication_signed_by(&authority)
+    }
+
+    fn register_product_signed_by(
+        &mut self,
+        medication: &[u8; 32],
+        authority: &Keypair,
+    ) -> Result<[u8; 32], String> {
+        let id = self.new_id();
+        let ix = Instruction::new_with_bytes(
+            rxtrail::id(),
+            &rxtrail::instruction::RegisterProduct {
+                id,
+                identity_hash: [0xcd; 32],
+            }
+            .data(),
+            rxtrail::accounts::RegisterProduct {
+                payer: self.operator.pubkey(),
+                catalog_authority: authority.pubkey(),
+                config: config_pda(),
+                medication: medication_pda(medication),
+                product: product_pda(&id),
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, &[authority]).map(|_| id)
+    }
+
+    fn register_product(&mut self, medication: &[u8; 32]) -> Result<[u8; 32], String> {
+        let authority = self.catalog_authority.insecure_clone();
+        self.register_product_signed_by(medication, &authority)
+    }
+
+    fn set_medication_status_signed_by(
+        &mut self,
+        medication: &[u8; 32],
+        status: CatalogStatus,
+        authority: &Keypair,
+    ) -> Result<(), String> {
+        let ix = Instruction::new_with_bytes(
+            rxtrail::id(),
+            &rxtrail::instruction::SetMedicationStatus { status }.data(),
+            rxtrail::accounts::SetMedicationStatus {
+                catalog_authority: authority.pubkey(),
+                config: config_pda(),
+                medication: medication_pda(medication),
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, &[authority])
+    }
+
+    fn set_medication_status(&mut self, status: CatalogStatus) -> Result<(), String> {
+        let (medication, authority) = (self.medication, self.catalog_authority.insecure_clone());
+        self.set_medication_status_signed_by(&medication, status, &authority)
+    }
+
+    fn set_product_status(
+        &mut self,
+        product: &[u8; 32],
+        status: CatalogStatus,
+    ) -> Result<(), String> {
+        let authority = self.catalog_authority.insecure_clone();
+        let ix = Instruction::new_with_bytes(
+            rxtrail::id(),
+            &rxtrail::instruction::SetProductStatus { status }.data(),
+            rxtrail::accounts::SetProductStatus {
+                catalog_authority: authority.pubkey(),
+                config: config_pda(),
+                product: product_pda(product),
+            }
+            .to_account_metas(None),
+        );
+        self.send(ix, &[&authority])
+    }
+
+    fn medication_record(&self, id: &[u8; 32]) -> Medication {
+        let account = self.svm.get_account(&medication_pda(id)).unwrap();
+        Medication::try_deserialize(&mut account.data.as_slice()).unwrap()
+    }
+
+    fn product_record(&self, id: &[u8; 32]) -> Product {
+        let account = self.svm.get_account(&product_pda(id)).unwrap();
+        Product::try_deserialize(&mut account.data.as_slice()).unwrap()
+    }
+
+    // -- prescriptions ----------------------------------------------------------
+
+    /// Issue for any medication, optionally locking a product.
+    fn issue_with(
         &mut self,
         prescriber: &Keypair,
         quantity: u32,
         expires_at: i64,
+        medication: &[u8; 32],
+        locked: Option<&[u8; 32]>,
     ) -> Result<[u8; 32], String> {
         let id = self.new_id();
         let ix = Instruction::new_with_bytes(
             rxtrail::id(),
             &rxtrail::instruction::IssuePrescription {
                 id,
-                patient_id: [7; 32],
                 document_hash: [9; 32],
                 quantity,
                 expires_at,
@@ -232,6 +371,8 @@ impl Env {
                 payer: self.operator.pubkey(),
                 prescriber_signer: prescriber.pubkey(),
                 prescriber: prescriber_pda(&prescriber.pubkey()),
+                medication: medication_pda(medication),
+                prescribed_product: locked.map(product_pda),
                 prescription: prescription_pda(&id),
                 system_program: system_program::ID,
             }
@@ -240,16 +381,30 @@ impl Env {
         self.send(ix, &[prescriber]).map(|_| id)
     }
 
+    fn issue_by(
+        &mut self,
+        prescriber: &Keypair,
+        quantity: u32,
+        expires_at: i64,
+    ) -> Result<[u8; 32], String> {
+        let medication = self.medication;
+        self.issue_with(prescriber, quantity, expires_at, &medication, None)
+    }
+
     fn issue(&mut self, quantity: u32) -> [u8; 32] {
         let prescriber = self.prescriber.insecure_clone();
         let expires_at = self.now() + 30 * DAY;
         self.issue_by(&prescriber, quantity, expires_at).unwrap()
     }
 
-    fn dispense_by(
+    /// Dispense a given product; `medication` is the account the pharmacy
+    /// claims is the prescribed one (normally read from the prescription).
+    fn dispense_with(
         &mut self,
         dispenser: &Keypair,
         id: &[u8; 32],
+        product: &[u8; 32],
+        medication: Pubkey,
         quantity: u32,
     ) -> Result<(), String> {
         let prescription = prescription_pda(id);
@@ -263,12 +418,35 @@ impl Env {
                 dispenser: dispenser_pda(&dispenser.pubkey()),
                 prescription,
                 prescriber: prescriber_pda(&state.prescriber),
+                medication,
+                product: product_pda(product),
                 dispensation: dispensation_pda(&prescription, state.dispensation_count),
                 system_program: system_program::ID,
             }
             .to_account_metas(None),
         );
         self.send(ix, &[dispenser])
+    }
+
+    fn dispense_product(
+        &mut self,
+        id: &[u8; 32],
+        product: &[u8; 32],
+        quantity: u32,
+    ) -> Result<(), String> {
+        let dispenser = self.dispenser.insecure_clone();
+        let medication = self.prescription(id).medication;
+        self.dispense_with(&dispenser, id, product, medication, quantity)
+    }
+
+    fn dispense_by(
+        &mut self,
+        dispenser: &Keypair,
+        id: &[u8; 32],
+        quantity: u32,
+    ) -> Result<(), String> {
+        let (product, medication) = (self.product, self.prescription(id).medication);
+        self.dispense_with(dispenser, id, &product, medication, quantity)
     }
 
     fn dispense(&mut self, id: &[u8; 32], quantity: u32) -> Result<(), String> {
@@ -352,7 +530,8 @@ fn a_prescription_is_issued_with_its_terms() {
         ),
         (30, 0, 0)
     );
-    assert_eq!(p.patient_id, [7; 32]);
+    assert_eq!(p.medication, medication_pda(&env.medication));
+    assert_eq!(p.prescribed_product, None);
     assert_eq!(p.document_hash, [9; 32]);
     assert_eq!(p.issued_at, env.now());
 }
@@ -381,6 +560,7 @@ fn partial_dispensations_each_leave_an_immutable_record() {
         (1, 15, 5)
     );
     assert_eq!(first.dispenser, env.dispenser.pubkey());
+    assert_eq!(first.product, product_pda(&env.product));
     assert_eq!(first.prescription, prescription_pda(&id));
 }
 
@@ -572,6 +752,7 @@ fn the_operator_pays_every_fee_and_deposit() {
         env.prescriber.pubkey(),
         env.dispenser.pubkey(),
         env.professional_authority.pubkey(),
+        env.catalog_authority.pubkey(),
     ] {
         assert_eq!(env.svm.get_balance(&key).unwrap_or(0), 0);
     }
@@ -669,6 +850,229 @@ fn only_the_professional_authority_suspends_prescribers() {
         err.contains(&code(RxTrailError::NotProfessionalAuthority)),
         "{err}"
     );
+}
+
+// ------------------------------------------------- catalog (RN-22 to 31) ----
+
+#[test]
+fn catalog_records_start_active_and_pin_their_meaning() {
+    let env = Env::new();
+
+    let medication = env.medication_record(&env.medication);
+    let product = env.product_record(&env.product);
+
+    assert_eq!(medication.status, CatalogStatus::Active);
+    assert_eq!(medication.identity_hash, [0xab; 32]);
+    assert_eq!(product.status, CatalogStatus::Active);
+    assert_eq!(product.identity_hash, [0xcd; 32]);
+    assert_eq!(product.medication, medication_pda(&env.medication));
+}
+
+#[test]
+fn only_the_catalog_authority_keeps_the_catalog() {
+    let mut env = Env::new();
+    let health = env.health_authority.insecure_clone();
+    let medication = env.medication;
+
+    let refusals = [
+        env.register_medication_signed_by(&health).map(|_| ()),
+        env.register_product_signed_by(&medication, &health)
+            .map(|_| ()),
+        env.set_medication_status_signed_by(&medication, CatalogStatus::Withdrawn, &health),
+    ];
+
+    for err in refusals {
+        let err = err.unwrap_err();
+        assert!(
+            err.contains(&code(RxTrailError::NotCatalogAuthority)),
+            "{err}"
+        );
+    }
+    assert_eq!(
+        env.medication_record(&medication).status,
+        CatalogStatus::Active
+    );
+}
+
+#[test]
+fn a_prescriber_may_lock_a_product_of_the_prescribed_medication() {
+    let mut env = Env::new();
+    let (prescriber, medication, product) =
+        (env.prescriber.insecure_clone(), env.medication, env.product);
+    let expires_at = env.now() + DAY;
+
+    let id = env
+        .issue_with(&prescriber, 30, expires_at, &medication, Some(&product))
+        .unwrap();
+
+    assert_eq!(
+        env.prescription(&id).prescribed_product,
+        Some(product_pda(&product))
+    );
+}
+
+#[test]
+fn a_product_of_another_medication_cannot_be_locked() {
+    let mut env = Env::new();
+    let other_medication = env.register_medication().unwrap();
+    let foreign = env.register_product(&other_medication).unwrap();
+    let (prescriber, medication) = (env.prescriber.insecure_clone(), env.medication);
+    let expires_at = env.now() + DAY;
+
+    let err = env
+        .issue_with(&prescriber, 30, expires_at, &medication, Some(&foreign))
+        .unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::ProductMedicationMismatch)),
+        "{err}"
+    );
+}
+
+#[test]
+fn the_dispensed_product_must_be_a_version_of_the_prescribed_medication() {
+    let mut env = Env::new();
+    let other_medication = env.register_medication().unwrap();
+    let foreign = env.register_product(&other_medication).unwrap();
+    let id = env.issue(30);
+
+    let err = env.dispense_product(&id, &foreign, 5).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::ProductMedicationMismatch)),
+        "{err}"
+    );
+    assert_eq!(env.prescription(&id).quantity_dispensed, 0);
+}
+
+#[test]
+fn a_pharmacy_cannot_point_at_another_medication_account() {
+    let mut env = Env::new();
+    let other_medication = env.register_medication().unwrap();
+    let id = env.issue(30);
+    let (dispenser, product) = (env.dispenser.insecure_clone(), env.product);
+
+    let err = env
+        .dispense_with(
+            &dispenser,
+            &id,
+            &product,
+            medication_pda(&other_medication),
+            5,
+        )
+        .unwrap_err();
+
+    // Anchor's ConstraintAddress: the medication is read from the prescription.
+    assert!(err.contains("Custom(2012)"), "{err}");
+}
+
+#[test]
+fn a_locked_product_cannot_be_substituted() {
+    let mut env = Env::new();
+    let medication = env.medication;
+    let generic = env.register_product(&medication).unwrap();
+    let (prescriber, brand) = (env.prescriber.insecure_clone(), env.product);
+    let expires_at = env.now() + DAY;
+    let id = env
+        .issue_with(&prescriber, 30, expires_at, &medication, Some(&brand))
+        .unwrap();
+
+    let err = env.dispense_product(&id, &generic, 5).unwrap_err();
+    assert!(
+        err.contains(&code(RxTrailError::PrescribedProductMismatch)),
+        "{err}"
+    );
+
+    env.dispense_product(&id, &brand, 5).unwrap();
+    assert_eq!(env.prescription(&id).quantity_dispensed, 5);
+}
+
+#[test]
+fn any_product_of_the_medication_may_be_dispensed_when_none_is_locked() {
+    let mut env = Env::new();
+    let medication = env.medication;
+    let generic = env.register_product(&medication).unwrap();
+    let id = env.issue(30);
+
+    env.dispense(&id, 10).unwrap();
+    env.dispense_product(&id, &generic, 10).unwrap();
+
+    assert_eq!(env.dispensation(&id, 1).product, product_pda(&generic));
+}
+
+// --------------------------------------------------------- recall (RN-33) ----
+
+#[test]
+fn a_withdrawn_product_cannot_be_dispensed_but_another_one_can() {
+    let mut env = Env::new();
+    let medication = env.medication;
+    let generic = env.register_product(&medication).unwrap();
+    let id = env.issue(30);
+    let recalled = env.product;
+
+    env.set_product_status(&recalled, CatalogStatus::Withdrawn)
+        .unwrap();
+    let err = env.dispense(&id, 5).unwrap_err();
+
+    assert!(err.contains(&code(RxTrailError::ProductNotActive)), "{err}");
+    env.dispense_product(&id, &generic, 5).unwrap();
+    let record = env.product_record(&recalled);
+    assert_eq!(
+        (record.status, record.status_changed_at),
+        (CatalogStatus::Withdrawn, env.now())
+    );
+}
+
+#[test]
+fn a_withdrawn_product_cannot_be_locked() {
+    let mut env = Env::new();
+    let (prescriber, medication, product) =
+        (env.prescriber.insecure_clone(), env.medication, env.product);
+    env.set_product_status(&product, CatalogStatus::Withdrawn)
+        .unwrap();
+    let expires_at = env.now() + DAY;
+
+    let err = env
+        .issue_with(&prescriber, 30, expires_at, &medication, Some(&product))
+        .unwrap_err();
+
+    assert!(err.contains(&code(RxTrailError::ProductNotActive)), "{err}");
+}
+
+#[test]
+fn a_withdrawn_medication_cannot_be_prescribed() {
+    let mut env = Env::new();
+    env.set_medication_status(CatalogStatus::Withdrawn).unwrap();
+
+    let prescriber = env.prescriber.insecure_clone();
+    let expires_at = env.now() + DAY;
+    let err = env.issue_by(&prescriber, 30, expires_at).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::MedicationNotActive)),
+        "{err}"
+    );
+}
+
+#[test]
+fn withdrawing_a_medication_freezes_its_prescriptions_until_reinstated() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.dispense(&id, 10).unwrap();
+
+    env.set_medication_status(CatalogStatus::Withdrawn).unwrap();
+    let err = env.dispense(&id, 5).unwrap_err();
+    assert!(
+        err.contains(&code(RxTrailError::MedicationNotActive)),
+        "{err}"
+    );
+    // What was already dispensed stays on record, untouched.
+    assert_eq!(env.prescription(&id).quantity_dispensed, 10);
+    assert_eq!(env.dispensation(&id, 0).quantity, 10);
+
+    env.set_medication_status(CatalogStatus::Active).unwrap();
+    env.dispense(&id, 5).unwrap();
+    assert_eq!(env.prescription(&id).quantity_dispensed, 15);
 }
 
 // ----------------------------------------------------------------- limits --

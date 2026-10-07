@@ -1,0 +1,59 @@
+{% comment %}Results of the medication picker (fetched into the prescription form's modal).{% endcomment %}
+{% if error %}
+  <p class="flex items-center gap-2 p-4 text-sm text-danger"><i data-lucide="octagon-x" class="h-4 w-4"></i> {{ error }}</p>
+{% else %}
+  <p class="px-1 pb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+    {% if favourites %}Your most prescribed, then the rest of the catalog{% else %}{{ cards|length }} match{{ cards|length|pluralize:"es" }}{% endif %}
+  </p>
+  <ul class="grid gap-2">
+    {% for card in cards %}
+      {% with m=card.record %}
+      <li class="rounded-2xl border border-white/10 bg-white/5" x-data="{ more: false }">
+        <div class="flex items-start gap-3 p-3">
+          <button type="button" data-medication="{{ card.json }}" @click="choose(JSON.parse($el.dataset.medication))"
+                  class="min-w-0 flex-1 rounded-xl p-1 text-left outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+                  {% if not card.available %}disabled title="Withdrawn from the catalog: it cannot be prescribed"{% endif %}>
+            <span class="flex flex-wrap items-center gap-2">
+              <span class="font-medium text-slate-100">{{ m.name }}</span>
+              {% if card.status == "withdrawn" %}<span class="rounded-full bg-danger/10 px-2 py-0.5 text-xs text-danger">Withdrawn</span>
+              {% elif not card.status %}<span class="rounded-full bg-white/5 px-2 py-0.5 text-xs text-slate-400">Not on this chain</span>{% endif %}
+            </span>
+            <span class="mt-0.5 block text-xs text-slate-500">{{ m.active_ingredient }} · {{ m.strength }} · {{ m.form }}{% if m.atc_code %} · ATC {{ m.atc_code }}{% endif %}{% if m.regulatory_list %} · list {{ m.regulatory_list }}{% endif %}</span>
+          </button>
+          <button type="button" @click="more = !more" :aria-expanded="more" class="shrink-0 rounded-lg px-2 py-1 text-xs text-brand-secondary hover:bg-white/5">
+            <span x-text="more ? 'See less' : 'See more'">See more</span>
+          </button>
+        </div>
+        <div x-show="more" x-cloak class="grid gap-3 border-t border-white/5 px-4 py-3 text-xs text-slate-400">
+          {% if m.dosage_guidance %}<p><span class="text-slate-500">Dosage guidance:</span> <span class="text-slate-300">{{ m.dosage_guidance }}</span></p>{% endif %}
+          <p class="flex flex-wrap gap-2">
+            {% if m.usual_max_daily_units %}<span class="rounded-full bg-white/5 px-2.5 py-1">usual max {{ m.usual_max_daily_units }} {{ m.unit }}/day</span>{% endif %}
+            {% if m.max_quantity %}<span class="rounded-full bg-white/5 px-2.5 py-1">max {{ m.max_quantity }} {{ m.unit }}s per prescription</span>{% endif %}
+            {% if m.max_validity_days %}<span class="rounded-full bg-white/5 px-2.5 py-1">valid up to {{ m.max_validity_days }} days</span>{% endif %}
+          </p>
+          <div>
+            <p class="mb-1 text-slate-500">Products ({{ card.products|length }})</p>
+            <ul class="grid gap-1">
+              {% for p in card.products %}
+                <li class="flex flex-wrap items-center gap-2">
+                  <span class="text-slate-300">{{ p.record.brand_name }}</span>
+                  <span>· {{ p.record.manufacturer.name }}</span>
+                  <span class="rounded-full px-2 py-0.5 {% if p.record.kind == 'generic' %}bg-brand-accent/10 text-brand-accent{% else %}bg-white/5{% endif %}">{{ p.record.get_kind_display }}</span>
+                  {% if p.status == "withdrawn" %}<span class="rounded-full bg-danger/10 px-2 py-0.5 text-danger">Withdrawn</span>{% endif %}
+                </li>
+              {% empty %}
+                <li>No products registered yet.</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <a href="{% url 'web:catalog' %}#{{ m.medication_id }}" target="_blank" class="inline-flex items-center gap-1 text-brand-secondary hover:underline">In the public catalog <i data-lucide="external-link" class="h-3 w-3"></i></a>
+        </div>
+      </li>
+      {% endwith %}
+    {% empty %}
+      <li class="rounded-2xl border border-white/10 p-6 text-center text-sm text-slate-500">
+        {% if query %}No medication matches “{{ query }}”.{% else %}The catalog is empty.{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}

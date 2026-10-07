@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load rxtrail %}
 {% block title %}Sign in{% endblock %}
 {% block content %}
 <div class="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[22rem_1fr]" x-data="{ username: '', password: '' }">
@@ -26,7 +27,7 @@
         <button type="button" @click="username = '{{ p.user.username }}'; password = '{{ demo_password }}'"
                 class="rx-card rx-card-hover rx-reveal flex items-center gap-3 p-4 text-left" style="--i: {{ forloop.counter }}">
           <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5">
-            <i data-lucide="{% if p.role == 'prescriber' %}stethoscope{% elif p.role == 'dispenser' %}pill{% elif p.role == 'professional_authority' %}landmark{% elif p.role == 'health_authority' %}building-2{% else %}search-check{% endif %}" class="h-5 w-5 text-brand-accent"></i>
+            <i data-lucide="{{ p.role|role_icon }}" class="h-5 w-5 text-brand-accent"></i>
           </span>
           <span>
             <span class="block font-medium text-slate-100">{{ p.display_name }}</span>

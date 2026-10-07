@@ -10,10 +10,15 @@ from datetime import datetime
 from typing import Protocol, Self
 
 from rxtrail.domain import (
+    CatalogStatus,
     Dispensation,
+    Medication,
+    MedicationDetails,
     ParticipantStatus,
     Prescription,
     PrescriptionDocument,
+    Product,
+    ProductDetails,
     Receipt,
 )
 
@@ -28,7 +33,9 @@ class PrescriptionLedger(Protocol):
 
     def address_of(self, participant: str) -> str: ...
 
-    async def initialize(self, professional_authority: str, health_authority: str) -> Receipt: ...
+    async def initialize(
+        self, professional_authority: str, health_authority: str, catalog_authority: str
+    ) -> Receipt: ...
 
     async def register_prescriber(self, authority: str, prescriber: str) -> Receipt: ...
 
@@ -42,17 +49,52 @@ class PrescriptionLedger(Protocol):
         self, authority: str, dispenser: str, status: ParticipantStatus
     ) -> Receipt: ...
 
+    # -- catalog: signed by the catalog authority --
+
+    def medication_address(self, medication_id: bytes) -> str: ...
+
+    def product_address(self, product_id: bytes) -> str: ...
+
+    async def register_medication(
+        self, authority: str, medication_id: bytes, identity_hash: bytes
+    ) -> Receipt: ...
+
+    async def register_product(
+        self, authority: str, product_id: bytes, medication_id: bytes, identity_hash: bytes
+    ) -> Receipt: ...
+
+    async def set_medication_status(
+        self, authority: str, medication_id: bytes, status: CatalogStatus
+    ) -> Receipt: ...
+
+    async def set_product_status(
+        self, authority: str, product_id: bytes, status: CatalogStatus
+    ) -> Receipt: ...
+
+    async def medication(self, medication_id: bytes) -> Medication | None: ...
+
+    async def product(self, product_id: bytes) -> Product | None: ...
+
+    async def catalog_entries(self, addresses: Sequence[str]) -> list[Medication | Product | None]:
+        """Many catalog records in one round trip, in the order asked; None if missing."""
+        ...
+
+    # -- prescriptions --
+
     async def issue_prescription(
         self,
         prescriber: str,
         prescription_id: bytes,
-        patient_id: bytes,
+        medication_id: bytes,
         document_hash: bytes,
         quantity: int,
         expires_at: datetime,
+        locked_product_id: bytes | None = None,
     ) -> Receipt: ...
 
-    async def dispense(self, dispenser: str, prescription_id: bytes, quantity: int) -> Receipt: ...
+    async def dispense(
+        self, dispenser: str, prescription_id: bytes, product_id: bytes, quantity: int
+    ) -> Receipt: ...
 
     async def prescription(self, prescription_id: bytes) -> Prescription | None: ...
 
@@ -84,8 +126,25 @@ class DocumentVault(Protocol):
         ...
 
 
+class CatalogDirectory(Protocol):
+    """Off-chain, public catalog: what each on-chain medication and product is."""
+
+    async def add_medication(
+        self, medication_id: bytes, address: str, details: MedicationDetails, identity_hash: bytes
+    ) -> None: ...
+
+    async def add_product(
+        self, product_id: bytes, address: str, details: ProductDetails, identity_hash: bytes
+    ) -> None: ...
+
+    async def medication(self, medication_id: bytes) -> MedicationDetails | None: ...
+
+
 class PatientDirectory(Protocol):
-    """Off-chain link between a patient's real identity and their random id."""
+    """Off-chain link between a patient's real identity and their random id.
+
+    The id never goes on-chain: it only ties a patient's documents together
+    in the off-chain store."""
 
     async def patient_id_for(self, document_number: str, name: str) -> bytes:
         """The patient's random id, created on first sight."""
