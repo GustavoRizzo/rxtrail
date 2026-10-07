@@ -57,6 +57,9 @@ CONFIRM_TIMEOUT_SECONDS = 90  # a transaction's blockhash expires in about a min
 # Concurrent pharmacies can collide on the next dispensation slot; see dispense().
 DISPENSE_ATTEMPTS = 5
 
+# getMultipleAccounts takes at most this many addresses per call.
+MULTIPLE_ACCOUNTS_LIMIT = 100
+
 
 def _timestamp(seconds: int) -> datetime:
     return datetime.fromtimestamp(seconds, UTC)
@@ -253,8 +256,21 @@ class SolanaLedger:
     async def prescription(self, prescription_id: bytes) -> Prescription | None:
         address = pdas.prescription(self.program_id, prescription_id)
         data = await self._account(address)
-        if data is None:
-            return None
+        return None if data is None else self._prescription(address, data)
+
+    async def prescriptions_by_id(self, ids: Sequence[bytes]) -> list[Prescription | None]:
+        addresses = [pdas.prescription(self.program_id, i) for i in ids]
+        found: list[Prescription | None] = []
+        for start in range(0, len(addresses), MULTIPLE_ACCOUNTS_LIMIT):
+            chunk = addresses[start : start + MULTIPLE_ACCOUNTS_LIMIT]
+            response = await self._call(self._client.get_multiple_accounts, chunk)
+            found.extend(
+                None if account is None else self._prescription(address, bytes(account.data))
+                for address, account in zip(chunk, response.value, strict=True)
+            )
+        return found
+
+    def _prescription(self, address: Pubkey, data: bytes) -> Prescription:
         raw = self._idl.decode_account("Prescription", data)
         return Prescription(
             id=raw["id"],

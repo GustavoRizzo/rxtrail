@@ -5,6 +5,7 @@ every refusal from the chain is shown as an error (the program decides).
 """
 
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import wraps
 
@@ -13,15 +14,16 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth import views as auth_views
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from config import container
 from records.models import Activity, Participant, PrescriptionRecord
-from rxtrail.domain import PrescriptionDocument, RxTrailError
+from rxtrail.domain import Prescription, PrescriptionDocument, RxTrailError, Standing
 from web.chain import with_chain
-from web.forms import DispenseForm, EnableParticipantForm, IssueForm
+from web.forms import DispenseForm, EnableParticipantForm, IssueForm, PrescriptionFilterForm
 
 Role = Participant.Role
 
@@ -215,21 +217,79 @@ def prescriber(request):
             )
             return redirect("web:prescription", prescription_id=rx)
 
-    records = list(
-        PrescriptionRecord.objects.filter(prescriber=me.key_name).order_by("-created_at")[:12]
-    )
-
-    async def load(_app, ledger):
-        return await asyncio.gather(
-            *(ledger.prescription(bytes.fromhex(r.prescription_id)) for r in records)
-        )
-
-    on_chain = with_chain(load) if records else []
+    filters = PrescriptionFilterForm(request.GET)
+    rows, scanned = _prescriber_rows(me, filters.cleaned_data if filters.is_valid() else {})
     return render(
         request,
         "web/prescriber.html",
-        {"form": form, "rows": list(zip(records, on_chain, strict=True))},
+        {
+            "form": form,
+            "filters": filters,
+            "filters_active": filters.active_count(),
+            "rows": rows[:PRESCRIBER_LIST_SHOWN],
+            "matches": len(rows),
+            "truncated": scanned == PRESCRIBER_LIST_SCANNED or len(rows) > PRESCRIBER_LIST_SHOWN,
+            "shown": PRESCRIBER_LIST_SHOWN,
+            "total": PrescriptionRecord.objects.filter(prescriber=me.key_name).count(),
+        },
     )
+
+
+# The prescriber's list reads this many records from the chain (two
+# getMultipleAccounts calls), filters and sorts them, and shows the first ones.
+PRESCRIBER_LIST_SCANNED = 200
+PRESCRIBER_LIST_SHOWN = 50
+
+_SORT_KEYS = {
+    "expiring": lambda row: (row.rx is None, row.rx and row.rx.expires_at),
+    "remaining": lambda row: -(row.rx.remaining if row.rx else -1),
+    "patient": lambda row: row.record.patient.name.casefold(),
+    "medication": lambda row: row.record.document["medication"].casefold(),
+}
+
+
+@dataclass(frozen=True)
+class _Row:
+    record: PrescriptionRecord
+    rx: Prescription | None  # None: the record points at nothing on this chain
+    standing: Standing | None
+
+
+def _prescriber_rows(me, wanted) -> tuple[list[_Row], int]:
+    """Off-chain fields filter in the database; on-chain ones after the read."""
+    records = PrescriptionRecord.objects.filter(prescriber=me.key_name).select_related("patient")
+    if q := wanted.get("q"):
+        records = records.filter(
+            Q(patient__name__icontains=q) | Q(document__medication__icontains=q)
+        )
+    if day := wanted.get("issued_from"):
+        records = records.filter(created_at__date__gte=day)
+    if day := wanted.get("issued_to"):
+        records = records.filter(created_at__date__lte=day)
+    sort = wanted.get("sort") or "newest"
+    records = list(
+        records.order_by("created_at" if sort == "oldest" else "-created_at")[
+            :PRESCRIBER_LIST_SCANNED
+        ]
+    )
+    if not records:
+        return [], 0
+
+    on_chain = with_chain(
+        lambda _app, ledger: ledger.prescriptions_by_id(
+            [bytes.fromhex(r.prescription_id) for r in records]
+        )
+    )
+    now = datetime.now(UTC)
+    rows = [
+        _Row(record, rx, rx.standing(now) if rx else None)
+        for record, rx in zip(records, on_chain, strict=True)
+    ]
+    if standing := wanted.get("standing"):
+        rows = [row for row in rows if row.standing == standing]
+    if key := _SORT_KEYS.get(sort):
+        rows.sort(key=key)
+    return rows, len(records)
 
 
 # -- dispenser ---------------------------------------------------------------------
@@ -394,3 +454,35 @@ def auditor(request):
             "activities": Activity.objects.select_related("actor")[:20],
         },
     )
+
+
+# -- development ------------------------------------------------------------------
+
+STYLE_TOKENS = [
+    ("brand-primary", "text-brand-primary · bg-brand-primary/15", "main actions"),
+    ("brand-secondary", "text-brand-secondary", "links, information"),
+    ("brand-accent", "text-brand-accent · bg-brand-accent/10", "success, live"),
+    ("danger", "text-danger · bg-danger/10", "refusals, suspension"),
+    ("surface", "bg-surface", "page background"),
+    ("on-brand", "", "text on brand colours"),
+    ("placeholder", "", "hint text in empty fields"),
+]
+
+STYLE_ICONS = [
+    ("stethoscope", "prescriber"),
+    ("pill", "pharmacy"),
+    ("landmark", "professional authority"),
+    ("building-2", "health authority"),
+    ("search-check", "auditor"),
+    ("shield-check", "verified"),
+    ("scan-search", "verify"),
+    ("pen-line", "sign"),
+    ("activity", "activity"),
+]
+
+
+def styleguide(request):
+    """Every token and component on one page. Development only."""
+    if not settings.DEBUG:
+        raise Http404
+    return render(request, "web/styleguide.html", {"tokens": STYLE_TOKENS, "icons": STYLE_ICONS})

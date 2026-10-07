@@ -4,33 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}RxTrail{% endblock %} · RxTrail</title>
+  <meta name="description" content="Tamper-proof dispensing limits for controlled prescriptions, on Solana.">
+  <meta name="author" content="{% for a in authors %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%239945ff'/%3E%3Cstop offset='1' stop-color='%2314f195'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M12 2 3 6v6c0 5 3.8 9.3 9 10 5.2-.7 9-5 9-10V6z'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@1.52.0/dist/umd/lucide.min.js"></script>
+  {% include "web/_theme.html" %}
   <link rel="stylesheet" href="{% static 'web/rxtrail.css' %}">
   <script src="{% static 'web/rxtrail.js' %}" defer></script>
-  <style type="text/tailwindcss">
-    @theme { --font-mono: "JetBrains Mono", ui-monospace, monospace; }
-  </style>
 </head>
 <body class="rx-backdrop min-h-full text-slate-200 antialiased">
-  <header class="sticky top-0 z-40 border-b border-white/5 bg-[#06060c]/70 backdrop-blur-xl">
+  <header class="sticky top-0 z-40 border-b border-white/5 bg-surface/70 backdrop-blur-xl">
     <nav class="mx-auto flex max-w-6xl items-center gap-4 px-5 py-3">
       <a href="{% url 'web:landing' %}" class="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-        <i data-lucide="shield-check" class="h-6 w-6 text-[#14f195]"></i>
+        <i data-lucide="shield-check" class="h-6 w-6 text-brand-accent"></i>
         <span class="rx-gradient-text">RxTrail</span>
       </a>
       <span class="ml-2 hidden items-center gap-2 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400 sm:flex">
-        <span class="rx-live relative h-2 w-2 rounded-full bg-[#14f195] text-[#14f195]"></span>
+        <span class="rx-live relative h-2 w-2 rounded-full bg-brand-accent text-brand-accent"></span>
         Solana {{ settings_network }}
       </span>
       <div class="ml-auto flex items-center gap-3 text-sm">
         {% if user.is_authenticated and user.participant %}
           <a href="{% url 'web:home' %}" class="hidden items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 sm:flex">
-            <i data-lucide="{{ role_icon }}" class="h-4 w-4 text-[#9945ff]"></i>
+            <i data-lucide="{{ role_icon }}" class="h-4 w-4 text-brand-primary"></i>
             <span class="font-medium text-slate-100">{{ user.participant.display_name }}</span>
             <span class="text-slate-500">· {{ user.participant.get_role_display }}</span>
           </a>
@@ -53,9 +53,9 @@
       <div x-data="{ open: true }" x-show="open" x-init="setTimeout(() => open = false, 9000)" x-transition.opacity.duration.400ms
            class="rx-toast rx-card flex items-start gap-3 p-4 text-sm shadow-2xl">
         {% if message.tags == "error" %}
-          <i data-lucide="octagon-x" class="mt-0.5 h-5 w-5 shrink-0 text-rose-400"></i>
+          <i data-lucide="octagon-x" class="mt-0.5 h-5 w-5 shrink-0 text-danger"></i>
         {% else %}
-          <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-[#14f195]"></i>
+          <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-brand-accent"></i>
         {% endif %}
         <p class="break-all text-slate-200">{{ message }}</p>
         <button @click="open = false" class="ml-auto text-slate-500 hover:text-slate-200"><i data-lucide="x" class="h-4 w-4"></i></button>
@@ -70,6 +70,16 @@
   <footer class="mx-auto max-w-6xl px-5 pb-10 text-xs text-slate-500">
     <div class="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/5 pt-6">
       <span>Rules enforced by an on-chain program on Solana.</span>
+      {% if debug_mode %}<a href="{% url 'web:styleguide' %}" class="flex items-center gap-1 hover:text-slate-300"><i data-lucide="palette" class="h-3.5 w-3.5"></i> Style guide</a>{% endif %}
+      <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+        Built by
+        {% for a in authors %}
+          <span class="text-slate-400">{{ a.name }}</span>
+          {% if a.github %}<a href="{{ a.github }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-slate-300" title="GitHub"><i data-lucide="code-xml" class="h-3.5 w-3.5"></i><span class="sr-only">GitHub</span></a>{% endif %}
+          {% if a.linkedin %}<a href="{{ a.linkedin }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-slate-300" title="LinkedIn"><i data-lucide="briefcase-business" class="h-3.5 w-3.5"></i><span class="sr-only">LinkedIn</span></a>{% endif %}
+          {% if not forloop.last %}<span>·</span>{% endif %}
+        {% endfor %}
+      </span>
       {% if demo_mode %}<span class="flex items-center gap-1"><i data-lucide="key-round" class="h-3.5 w-3.5"></i> Demo mode: keys are held by the server. In production each participant signs with their own wallet.</span>{% endif %}
     </div>
   </footer>

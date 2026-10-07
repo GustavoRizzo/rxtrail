@@ -20,6 +20,18 @@ class PrescriptionStatus(StrEnum):
     ACTIVE = "active"
 
 
+class Standing(StrEnum):
+    """Where a prescription stands for the people using it, at a given moment.
+
+    Derived from on-chain data, never stored: COMPLETED means every unit
+    granted was dispensed; EXPIRED means the deadline passed with units left.
+    """
+
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
 @dataclass(frozen=True, slots=True)
 class Prescription:
     """A prescription as recorded on-chain: terms and counters, no personal data."""
@@ -39,6 +51,13 @@ class Prescription:
     @property
     def remaining(self) -> int:
         return self.quantity_granted - self.quantity_dispensed
+
+    def standing(self, now: datetime) -> Standing:
+        if self.remaining == 0:
+            return Standing.COMPLETED
+        if now >= self.expires_at:
+            return Standing.EXPIRED
+        return Standing.ACTIVE
 
 
 @dataclass(frozen=True, slots=True)

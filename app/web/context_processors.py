@@ -14,5 +14,7 @@ def rxtrail(request):
     return {
         "settings_network": settings.SOLANA_NETWORK,
         "demo_mode": settings.RXTRAIL_DEMO_MODE,
+        "debug_mode": settings.DEBUG,
+        "authors": settings.RXTRAIL_AUTHORS,
         "role_icon": ROLE_ICONS.get(getattr(participant, "role", ""), "user"),
     }

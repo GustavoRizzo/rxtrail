@@ -18,14 +18,14 @@
       </div>
     </div>
     {% if trail.consistent %}
-      <div class="flex items-center gap-3 rounded-2xl border border-[#14f195]/30 bg-[#14f195]/10 px-5 py-3">
-        <i data-lucide="shield-check" class="h-7 w-7 text-[#14f195]"></i>
-        <div><p class="font-semibold text-[#14f195]">History verified</p><p class="text-xs text-slate-400">Rebuilt from the chain; every record adds up.</p></div>
+      <div class="flex items-center gap-3 rounded-2xl border border-brand-accent/30 bg-brand-accent/10 px-5 py-3">
+        <i data-lucide="shield-check" class="h-7 w-7 text-brand-accent"></i>
+        <div><p class="font-semibold text-brand-accent">History verified</p><p class="text-xs text-slate-400">Rebuilt from the chain; every record adds up.</p></div>
       </div>
     {% else %}
-      <div class="flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-5 py-3">
-        <i data-lucide="shield-alert" class="h-7 w-7 text-rose-400"></i>
-        <div><p class="font-semibold text-rose-300">Inconsistencies found</p>{% for p in trail.problems %}<p class="text-xs text-slate-300">{{ p }}</p>{% endfor %}</div>
+      <div class="flex items-center gap-3 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-3">
+        <i data-lucide="shield-alert" class="h-7 w-7 text-danger"></i>
+        <div><p class="font-semibold text-danger">Inconsistencies found</p>{% for p in trail.problems %}<p class="text-xs text-slate-300">{{ p }}</p>{% endfor %}</div>
       </div>
     {% endif %}
   </div>
@@ -41,23 +41,23 @@
 
 <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
   <section class="rx-card rx-reveal p-7" style="--i:1">
-    <h2 class="mb-5 flex items-center gap-2 font-semibold text-white"><i data-lucide="git-commit-vertical" class="h-5 w-5 text-[#38bdf8]"></i> On-chain history</h2>
+    <h2 class="mb-5 flex items-center gap-2 font-semibold text-white"><i data-lucide="git-commit-vertical" class="h-5 w-5 text-brand-secondary"></i> On-chain history</h2>
     <ol class="relative space-y-6 border-l border-white/10 pl-6">
       <li class="rx-reveal relative" style="--i:1">
-        <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-[#9945ff]"><i data-lucide="pen-line" class="h-2.5 w-2.5 text-white"></i></span>
+        <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-brand-primary"><i data-lucide="pen-line" class="h-2.5 w-2.5 text-white"></i></span>
         <p class="text-sm font-medium text-slate-100">Issued for {{ rx.quantity_granted }} units</p>
         <p class="mt-0.5 text-xs text-slate-500">{{ rx.issued_at|date:"M j, Y H:i" }} UTC · signed by
           <span class="text-slate-300">{{ rx.prescriber|who:names }}</span>
-          <a target="_blank" href="{{ rx.prescriber|explorer }}" class="font-mono hover:text-[#14f195]">({{ rx.prescriber|short:4 }})</a></p>
+          <a target="_blank" href="{{ rx.prescriber|explorer }}" class="font-mono hover:text-brand-accent">({{ rx.prescriber|short:4 }})</a></p>
       </li>
       {% for d in trail.dispensations %}
         <li class="rx-reveal relative" style="--i: {{ forloop.counter|add:1 }}">
-          <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-[#14f195]"><i data-lucide="pill" class="h-2.5 w-2.5 text-[#06060c]"></i></span>
+          <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-brand-accent"><i data-lucide="pill" class="h-2.5 w-2.5 text-surface"></i></span>
           <p class="text-sm font-medium text-slate-100">Dispensed {{ d.quantity }} · {{ d.remaining_after }} remaining</p>
           <p class="mt-0.5 text-xs text-slate-500">{{ d.dispensed_at|date:"M j, Y H:i" }} UTC · signed by
             <span class="text-slate-300">{{ d.dispenser|who:names }}</span>
-            <a target="_blank" href="{{ d.dispenser|explorer }}" class="font-mono hover:text-[#14f195]">({{ d.dispenser|short:4 }})</a>
-            · <a target="_blank" href="{{ d.address|explorer }}" class="inline-flex items-center gap-1 hover:text-[#14f195]">record <i data-lucide="external-link" class="h-3 w-3"></i></a></p>
+            <a target="_blank" href="{{ d.dispenser|explorer }}" class="font-mono hover:text-brand-accent">({{ d.dispenser|short:4 }})</a>
+            · <a target="_blank" href="{{ d.address|explorer }}" class="inline-flex items-center gap-1 hover:text-brand-accent">record <i data-lucide="external-link" class="h-3 w-3"></i></a></p>
         </li>
       {% empty %}
         <li class="text-sm text-slate-500">Not dispensed yet.</li>
@@ -67,11 +67,11 @@
 
   <div class="grid h-fit gap-6">
     <section class="rx-card rx-reveal p-6" style="--i:2">
-      <h2 class="mb-3 flex items-center gap-2 font-semibold text-white"><i data-lucide="file-lock-2" class="h-5 w-5 text-[#9945ff]"></i> Document</h2>
+      <h2 class="mb-3 flex items-center gap-2 font-semibold text-white"><i data-lucide="file-lock-2" class="h-5 w-5 text-brand-primary"></i> Document</h2>
       {% if trail.document_verified %}
-        <p class="flex items-center gap-2 text-sm text-[#14f195]"><i data-lucide="check-check" class="h-4 w-4"></i> Matches the hash recorded on-chain</p>
+        <p class="flex items-center gap-2 text-sm text-brand-accent"><i data-lucide="check-check" class="h-4 w-4"></i> Matches the hash recorded on-chain</p>
       {% elif trail.document_verified is False %}
-        <p class="flex items-center gap-2 text-sm text-rose-300"><i data-lucide="x" class="h-4 w-4"></i> Does not match the on-chain hash</p>
+        <p class="flex items-center gap-2 text-sm text-danger"><i data-lucide="x" class="h-4 w-4"></i> Does not match the on-chain hash</p>
       {% else %}
         <p class="text-sm text-slate-500">Not held by this node.</p>
       {% endif %}
@@ -87,7 +87,7 @@
       {% endif %}
     </section>
     <section class="rx-card rx-reveal p-6 text-sm" style="--i:3">
-      <h2 class="mb-3 flex items-center gap-2 font-semibold text-white"><i data-lucide="link-2" class="h-5 w-5 text-[#38bdf8]"></i> On the explorer</h2>
+      <h2 class="mb-3 flex items-center gap-2 font-semibold text-white"><i data-lucide="link-2" class="h-5 w-5 text-brand-secondary"></i> On the explorer</h2>
       <a target="_blank" href="{{ rx.address|explorer }}" class="flex items-center justify-between rounded-xl bg-white/5 px-4 py-3 hover:bg-white/10"><span>Prescription account</span><span class="font-mono text-xs text-slate-400">{{ rx.address|short:5 }}</span></a>
       <p class="mt-3 text-xs text-slate-500">Hash of the document: <code class="break-all font-mono">{{ rx.document_hash.hex }}</code></p>
     </section>

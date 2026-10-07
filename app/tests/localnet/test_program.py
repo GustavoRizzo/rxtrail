@@ -44,6 +44,18 @@ async def test_issue_dispense_and_audit(app, enabled):
     assert [d.quantity for d in trail.dispensations] == [20, 10]
 
 
+async def test_prescriptions_are_read_in_one_call_in_the_order_asked(app, ledger, enabled):
+    prescriber, _ = enabled
+    first = await app.issue(prescriber, "123", a_document(quantity=5), timedelta(days=30))
+    second = await app.issue(prescriber, "456", a_document(quantity=7), timedelta(days=30))
+
+    found = await ledger.prescriptions_by_id(
+        [second.prescription_id, new_id(), first.prescription_id]
+    )
+
+    assert [rx and rx.quantity_granted for rx in found] == [7, None, 5]
+
+
 async def test_the_program_itself_refuses_over_dispensing(app, ledger, enabled):
     prescriber, dispenser = enabled
     issued = await app.issue(prescriber, "123", a_document(quantity=30), timedelta(days=30))

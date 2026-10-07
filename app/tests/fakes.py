@@ -6,7 +6,7 @@ tests/localnet runs the same scenarios against the real program.
 """
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from rxtrail.domain import (
     Dispensation,
@@ -108,6 +108,9 @@ class FakeLedger:
     async def prescription(self, prescription_id):
         return self.prescriptions.get(prescription_id)
 
+    async def prescriptions_by_id(self, ids):
+        return [self.prescriptions.get(i) for i in ids]
+
     async def participant_status(self, role, participant):
         enabled = self.prescribers if role == "prescriber" else self.dispensers
         return "active" if participant in enabled else None
@@ -147,3 +150,19 @@ def a_document(quantity: int = 30, **changes) -> PrescriptionDocument:
         issued_on="2026-10-01",
     )
     return replace(document, **changes)
+
+
+def a_prescription(granted=30, dispensed=0, expires_in=timedelta(days=30)) -> Prescription:
+    return Prescription(
+        id=b"\x01" * 32,
+        address="rx",
+        prescriber="dr",
+        patient_id=b"\x02" * 32,
+        document_hash=b"\x03" * 32,
+        quantity_granted=granted,
+        quantity_dispensed=dispensed,
+        dispensation_count=0,
+        issued_at=T0,
+        expires_at=T0 + expires_in,
+        status=PrescriptionStatus.ACTIVE,
+    )

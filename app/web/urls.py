@@ -18,4 +18,5 @@ urlpatterns = [
     path("authority/enable/", views.enable_participant, name="enable"),
     path("authority/status/", views.set_status, name="set_status"),
     path("auditor/", views.auditor, name="auditor"),
+    path("styleguide/", views.styleguide, name="styleguide"),
 ]

@@ -1,0 +1,103 @@
+{% extends "web/base.html" %}
+{% block title %}Style guide{% endblock %}
+{% block content %}
+<div class="mb-10 rx-reveal">
+  <p class="text-sm text-slate-500">Development only</p>
+  <h1 class="text-3xl font-bold text-white">Style guide</h1>
+  <p class="mt-1 text-slate-400">Every token and component in one place. The identity lives in
+    <code class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-sm text-slate-300">web/static/web/tokens.css</code>; change it there and this page shows the result.</p>
+</div>
+
+{# -- tokens: values are read live from the CSS, so this page never lies -- #}
+<section class="mb-12">
+  <h2 class="mb-4 text-lg font-semibold text-white">Colour tokens</h2>
+  <div class="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+    {% for token, utility, use in tokens %}
+      <div class="rx-card p-3" x-data="{ value: '' }" x-init="value = getComputedStyle(document.documentElement).getPropertyValue('--{{ token }}').trim()">
+        <div class="h-16 rounded-xl border border-white/10" style="background: var(--{{ token }})"></div>
+        <p class="mt-3 font-mono text-xs text-slate-200">--{{ token }}</p>
+        <p class="font-mono text-xs text-slate-500" x-text="value"></p>
+        <p class="mt-1 text-xs text-slate-500">{{ use }}</p>
+        {% if utility %}<p class="mt-1 font-mono text-[11px] text-slate-600">{{ utility }}</p>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="rx-card mt-4 p-3">
+    <div class="h-10 rounded-xl" style="background: var(--brand-gradient)"></div>
+    <p class="mt-2 font-mono text-xs text-slate-300">--brand-gradient <span class="text-slate-500">· buttons, progress, gradient text, card borders</span></p>
+  </div>
+</section>
+
+<section class="mb-12 grid gap-6 lg:grid-cols-2">
+  <div class="rx-card p-6">
+    <h2 class="mb-4 text-lg font-semibold text-white">Typography</h2>
+    <p class="text-4xl font-extrabold tracking-tight text-white">Display heading</p>
+    <p class="mt-2 text-4xl font-extrabold tracking-tight rx-gradient-text">Gradient text</p>
+    <p class="mt-4 text-2xl font-bold text-white">Page title</p>
+    <p class="mt-2 text-slate-400">Body text, secondary. Explains what a screen is for.</p>
+    <p class="mt-2 text-xs uppercase tracking-wide text-slate-500">Field label</p>
+    <p class="mt-2 font-mono text-sm text-slate-300">32283a851865f8faf72a2bb39b66902d · mono for ids and keys</p>
+  </div>
+
+  <div class="rx-card p-6">
+    <h2 class="mb-4 text-lg font-semibold text-white">Buttons</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      <button class="rx-button flex items-center gap-2 px-5 py-2.5"><i data-lucide="pen-line" class="h-4 w-4"></i> Primary</button>
+      <button class="rx-button flex items-center gap-2 px-5 py-2.5" disabled><i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i> Busy</button>
+      <button class="flex items-center gap-1.5 rounded-xl border border-danger/30 px-3 py-2 text-sm text-danger transition hover:bg-danger/10"><i data-lucide="shield-off" class="h-4 w-4"></i> Destructive</button>
+      <button class="flex items-center gap-1.5 rounded-xl border border-brand-accent/30 px-3 py-2 text-sm text-brand-accent transition hover:bg-brand-accent/10"><i data-lucide="shield-check" class="h-4 w-4"></i> Restore</button>
+      <button class="flex items-center gap-2 rounded-xl border border-white/10 px-5 py-2.5 text-slate-300 transition hover:bg-white/5"><i data-lucide="code-xml" class="h-4 w-4"></i> Secondary</button>
+    </div>
+  </div>
+
+  <div class="rx-card p-6">
+    <h2 class="mb-4 text-lg font-semibold text-white">Form fields</h2>
+    <div class="grid gap-4">
+      {% include "web/_field.html" with label="Text" name="sample" placeholder="Placeholder" %}
+      {% include "web/_password.html" with name="sample-password" %}
+      <input class="rx-input font-mono text-sm" placeholder="Monospace, for ids">
+    </div>
+  </div>
+
+  <div class="rx-card p-6">
+    <h2 class="mb-4 text-lg font-semibold text-white">Status and progress</h2>
+    <div class="flex flex-wrap gap-2">
+      <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><span class="rx-live relative h-1.5 w-1.5 rounded-full bg-brand-accent"></span> Active</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-danger/10 px-3 py-1 text-xs text-danger"><i data-lucide="pause" class="h-3 w-3"></i> Suspended</span>
+      <span class="rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400">Fully dispensed</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><i data-lucide="circle-dot" class="h-3 w-3"></i> 10 left</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="check" class="h-3 w-3"></i> Completed</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="clock-alert" class="h-3 w-3"></i> Expired · 4 unused</span>
+    </div>
+    <div class="mt-5 grid gap-3">
+      <div class="rx-progress"><span style="width: 0%"></span></div>
+      <div class="rx-progress"><span style="width: 40%"></span></div>
+      <div class="rx-progress"><span style="width: 100%"></span></div>
+      <div class="rx-progress is-muted"><span style="width: 100%"></span></div>
+      <p class="font-mono text-xs text-slate-500">.rx-progress.is-muted · completed or expired: over, so it draws no eye</p>
+    </div>
+  </div>
+
+  <div class="grid gap-3">
+    <h2 class="text-lg font-semibold text-white">Notifications</h2>
+    <div class="rx-card flex items-start gap-3 p-4 text-sm"><i data-lucide="circle-check" class="mt-0.5 h-5 w-5 text-brand-accent"></i><p>Dispensed 5. Recorded on-chain.</p></div>
+    <div class="rx-card flex items-start gap-3 p-4 text-sm"><i data-lucide="octagon-x" class="mt-0.5 h-5 w-5 text-danger"></i><p>QuantityExceedsRemaining: asked for 15, only 10 of 30 remain</p></div>
+  </div>
+
+  <div class="rx-card rx-card-hover p-6">
+    <h2 class="mb-2 text-lg font-semibold text-white">Card (hover me)</h2>
+    <p class="text-sm text-slate-400"><code class="font-mono">rx-card</code> draws the gradient border; <code class="font-mono">rx-card-hover</code> lifts it. Entrances use <code class="font-mono">rx-reveal</code> with <code class="font-mono">--i</code> for stagger.</p>
+  </div>
+</section>
+
+<section class="rx-card mb-12 p-6">
+  <h2 class="mb-4 text-lg font-semibold text-white">Icons (Lucide)</h2>
+  <div class="grid grid-cols-3 gap-4 text-xs text-slate-400 sm:grid-cols-6 lg:grid-cols-9">
+    {% for icon, meaning in icons %}
+      <div class="flex flex-col items-center gap-2 rounded-xl bg-white/5 p-3 text-center">
+        <i data-lucide="{{ icon }}" class="h-5 w-5 text-brand-accent"></i><span>{{ meaning }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

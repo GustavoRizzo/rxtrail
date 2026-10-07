@@ -78,6 +78,16 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.cookie.CookieStorage"
 # Demo mode: the login page lists the demo accounts (see `manage.py demo_data`).
 RXTRAIL_DEMO_MODE = os.environ.get("RXTRAIL_DEMO_MODE", "1") == "1"
 RXTRAIL_DEMO_PASSWORD = "rxtrail-demo"
+
+# Who builds RxTrail. Shown in the footer and the page metadata; add a line
+# per teammate.
+RXTRAIL_AUTHORS = [
+    {
+        "name": "Gustavo Rizzo S. M. de Albuquerque",
+        "github": "https://github.com/GustavoRizzo",
+        "linkedin": "https://www.linkedin.com/in/gustavo-albuquerque/",
+    },
+]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Solana ------------------------------------------------------------------

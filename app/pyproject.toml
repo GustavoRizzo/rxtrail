@@ -2,6 +2,7 @@
 name = "rxtrail"
 version = "0.1.0"
 description = "Tamper-proof dispensing limits for controlled prescriptions, on Solana."
+authors = [{ name = "Gustavo Rizzo S. M. de Albuquerque" }]
 requires-python = ">=3.14"
 dependencies = [
     "django>=6.1.1",
@@ -9,6 +10,9 @@ dependencies = [
     "solana>=0.40.3",
     "solders>=0.29.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/GustavoRizzo/rxtrail"
 
 [dependency-groups]
 dev = ["ruff>=0.16.9", "pytest>=9.1.1", "pytest-asyncio>=1.4.0", "pytest-django>=4.14.0"]

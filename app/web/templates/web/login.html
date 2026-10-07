@@ -6,13 +6,11 @@
     {% csrf_token %}
     <h1 class="text-2xl font-bold text-white">Sign in</h1>
     <p class="mt-1 text-sm text-slate-400">Each account acts with its own on-chain key.</p>
-    {% if form.errors %}<p class="mt-4 flex items-center gap-2 text-sm text-rose-400"><i data-lucide="circle-alert" class="h-4 w-4"></i> Wrong username or password.</p>{% endif %}
+    {% if form.errors %}<p class="mt-4 flex items-center gap-2 text-sm text-danger"><i data-lucide="circle-alert" class="h-4 w-4"></i> Wrong username or password.</p>{% endif %}
     <label class="mt-6 block text-xs font-medium uppercase tracking-wide text-slate-500">Username
       <input name="username" x-model="username" autocomplete="username" required class="rx-input mt-1.5 normal-case">
     </label>
-    <label class="mt-4 block text-xs font-medium uppercase tracking-wide text-slate-500">Password
-      <input type="password" name="password" x-model="password" autocomplete="current-password" required class="rx-input mt-1.5">
-    </label>
+    <div class="mt-4">{% include "web/_password.html" with model="password" required=True %}</div>
     <input type="hidden" name="next" value="{{ next }}">
     <button class="rx-button mt-6 flex w-full items-center justify-center gap-2 py-3" :disabled="busy">
       <i data-lucide="log-in" class="h-4 w-4"></i><span x-text="busy ? 'Signing in…' : 'Sign in'">Sign in</span>
@@ -28,7 +26,7 @@
         <button type="button" @click="username = '{{ p.user.username }}'; password = '{{ demo_password }}'"
                 class="rx-card rx-card-hover rx-reveal flex items-center gap-3 p-4 text-left" style="--i: {{ forloop.counter }}">
           <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5">
-            <i data-lucide="{% if p.role == 'prescriber' %}stethoscope{% elif p.role == 'dispenser' %}pill{% elif p.role == 'professional_authority' %}landmark{% elif p.role == 'health_authority' %}building-2{% else %}search-check{% endif %}" class="h-5 w-5 text-[#14f195]"></i>
+            <i data-lucide="{% if p.role == 'prescriber' %}stethoscope{% elif p.role == 'dispenser' %}pill{% elif p.role == 'professional_authority' %}landmark{% elif p.role == 'health_authority' %}building-2{% else %}search-check{% endif %}" class="h-5 w-5 text-brand-accent"></i>
           </span>
           <span>
             <span class="block font-medium text-slate-100">{{ p.display_name }}</span>

@@ -1,7 +1,9 @@
 [package]
 name = "rxtrail"
 version = "0.1.0"
-description = "Created with Anchor"
+description = "RxTrail: tamper-proof dispensing limits for controlled prescriptions, on Solana."
+authors = ["Gustavo Rizzo S. M. de Albuquerque"]
+repository = "https://github.com/GustavoRizzo/rxtrail"
 edition.workspace = true
 rust-version.workspace = true
 

@@ -1,16 +1,16 @@
 {% load rxtrail %}
 <div class="rx-card p-6">
-  <h3 class="mb-4 flex items-center gap-2 font-semibold text-slate-100"><i data-lucide="activity" class="h-4 w-4 text-[#38bdf8]"></i> {{ title|default:"Recent activity" }}</h3>
+  <h3 class="mb-4 flex items-center gap-2 font-semibold text-slate-100"><i data-lucide="activity" class="h-4 w-4 text-brand-secondary"></i> {{ title|default:"Recent activity" }}</h3>
   {% if activities %}
     <ol class="relative space-y-4 border-l border-white/10 pl-5">
       {% for a in activities %}
         <li class="rx-reveal relative" style="--i: {{ forloop.counter }}">
-          <span class="absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-[#9945ff] to-[#14f195]"></span>
+          <span class="absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent"></span>
           <p class="text-sm text-slate-200">{{ a.summary }}{% if show_actor %} <span class="text-slate-500">· {{ a.actor.display_name }}</span>{% endif %}</p>
           <p class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
             <span>{{ a.created_at|timesince }} ago</span>
             {% if a.prescription_id %}<a class="hover:text-slate-300" href="{% url 'web:prescription' a.prescription_id %}">rx {{ a.prescription_id|short }}</a>{% endif %}
-            {% if a.signature %}<a class="inline-flex items-center gap-1 hover:text-[#14f195]" target="_blank" href="{{ a.signature|explorer:'tx' }}">tx {{ a.signature|short }} <i data-lucide="external-link" class="h-3 w-3"></i></a>{% endif %}
+            {% if a.signature %}<a class="inline-flex items-center gap-1 hover:text-brand-accent" target="_blank" href="{{ a.signature|explorer:'tx' }}">tx {{ a.signature|short }} <i data-lucide="external-link" class="h-3 w-3"></i></a>{% endif %}
           </p>
         </li>
       {% endfor %}

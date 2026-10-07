@@ -1,16 +1,10 @@
-/* RxTrail visual layer on top of Tailwind: gradient borders, glass cards,
-   and a few purposeful animations. Respects prefers-reduced-motion. */
-
-:root {
-  --rx-violet: #9945ff;
-  --rx-mint: #14f195;
-  --rx-sky: #38bdf8;
-  --rx-gradient: linear-gradient(120deg, var(--rx-violet), var(--rx-sky) 50%, var(--rx-mint));
-}
+/* RxTrail components on top of Tailwind: gradient borders, glass cards,
+   and a few purposeful animations. Colours and fonts come from tokens.css
+   only; nothing here hard-codes the identity. Respects prefers-reduced-motion. */
 
 body {
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: #06060c;
+  font-family: var(--font-sans);
+  background: var(--surface);
 }
 
 /* Slow-moving glow behind everything. */
@@ -26,8 +20,8 @@ body {
   opacity: 0.22;
   animation: rx-drift 24s ease-in-out infinite alternate;
 }
-.rx-backdrop::before { background: var(--rx-violet); top: -14rem; left: -10rem; }
-.rx-backdrop::after { background: var(--rx-mint); bottom: -16rem; right: -12rem; animation-delay: -12s; }
+.rx-backdrop::before { background: var(--brand-primary); top: -14rem; left: -10rem; }
+.rx-backdrop::after { background: var(--brand-accent); bottom: -16rem; right: -12rem; animation-delay: -12s; }
 
 @keyframes rx-drift {
   to { transform: translate(6rem, 4rem) scale(1.15); }
@@ -39,18 +33,23 @@ body {
   border: 1px solid transparent;
   border-radius: 1.25rem;
   background:
-    linear-gradient(rgb(13 13 24 / 0.92), rgb(13 13 24 / 0.92)) padding-box,
-    linear-gradient(140deg, rgb(153 69 255 / 0.55), rgb(56 189 248 / 0.25), rgb(20 241 149 / 0.5)) border-box;
+    linear-gradient(var(--surface-card), var(--surface-card)) padding-box,
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--brand-primary) 55%, transparent),
+      color-mix(in srgb, var(--brand-secondary) 25%, transparent),
+      color-mix(in srgb, var(--brand-accent) 50%, transparent)
+    ) border-box;
   backdrop-filter: blur(12px);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .rx-card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 50px -18px rgb(153 69 255 / 0.55);
+  box-shadow: 0 18px 50px -18px color-mix(in srgb, var(--brand-primary) 55%, transparent);
 }
 
 .rx-gradient-text {
-  background: var(--rx-gradient);
+  background: var(--brand-gradient);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -62,14 +61,14 @@ body {
 }
 
 .rx-button {
-  background: var(--rx-gradient);
+  background: var(--brand-gradient);
   background-size: 200% auto;
-  color: #06060c;
+  color: var(--on-brand);
   font-weight: 600;
   border-radius: 0.75rem;
   transition: background-position 0.5s ease, transform 0.15s ease, box-shadow 0.25s ease;
 }
-.rx-button:hover { background-position: right center; box-shadow: 0 8px 30px -8px rgb(20 241 149 / 0.6); }
+.rx-button:hover { background-position: right center; box-shadow: 0 8px 30px -8px color-mix(in srgb, var(--brand-accent) 60%, transparent); }
 .rx-button:active { transform: scale(0.97); }
 .rx-button:disabled { opacity: 0.6; cursor: wait; }
 
@@ -79,26 +78,51 @@ body {
   border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 0.75rem;
   padding: 0.65rem 0.9rem;
-  color: #f1f5f9;
+  color: var(--text);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.rx-input:focus {
-  outline: none;
-  border-color: rgb(153 69 255 / 0.7);
-  box-shadow: 0 0 0 4px rgb(153 69 255 / 0.15);
+/* Real values stand out; placeholders read as hints, never as filled-in data. */
+.rx-input { font-weight: 500; }
+.rx-input::placeholder {
+  color: var(--placeholder);
+  font-weight: 400;
+  font-style: italic;
+  opacity: 1; /* Firefox dims placeholders on its own; the token decides */
 }
 
-/* Progress bar with a moving sheen while something remains. */
-.rx-progress { height: 0.55rem; border-radius: 9999px; background: rgb(255 255 255 / 0.07); overflow: hidden; }
+.rx-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-primary) 70%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 15%, transparent);
+}
+
+/* Progress bar: grows into place once, then stays still (a list of moving
+   bars competes with the content). .is-muted for prescriptions that are over
+   (completed or expired): they matter least, so they draw no eye. */
+.rx-progress { height: 0.5rem; border-radius: 9999px; background: rgb(255 255 255 / 0.07); overflow: hidden; }
 .rx-progress > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--rx-gradient);
-  background-size: 200% auto;
-  animation: rx-shine 3s linear infinite;
-  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  background: var(--brand-gradient);
+  animation: rx-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left;
 }
+.rx-progress.is-muted > span { background: rgb(255 255 255 / 0.22); }
+@keyframes rx-grow {
+  from { transform: scaleX(0); }
+}
+
+input[type="date"].rx-input:not([data-filled])::-webkit-datetime-edit {
+  color: var(--placeholder);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Native controls (select menus, date pickers) follow the dark surface. */
+select.rx-input, input[type="date"].rx-input { color-scheme: dark; }
+/* The chevron is a Lucide icon next to the select (see prescriber.html). */
+select.rx-input { appearance: none; padding-right: 2.25rem; cursor: pointer; }
 
 /* Entrances: cards rise in, staggered by --i. */
 .rx-reveal { animation: rx-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
@@ -127,3 +151,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Alpine: hide x-cloak'd elements until Alpine has started. */
+[x-cloak] { display: none !important; }

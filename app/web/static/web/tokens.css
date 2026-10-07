@@ -1,0 +1,33 @@
+/* RxTrail visual identity: THE ONE PLACE TO CHANGE IT.
+ *
+ * Every colour, gradient and font in the app comes from these tokens:
+ * Tailwind utilities (text-brand-accent, bg-brand-primary/15, ...) are mapped
+ * to them in templates/web/_theme.html, and rxtrail.css reads them directly.
+ * Names say what a colour is for, not what it looks like, so a new identity
+ * only changes the values below. Preview everything at /styleguide/.
+ *
+ * One exception: the favicon in templates/web/base.html is an inline SVG
+ * with its own two colours (a browser icon cannot read page styles).
+ */
+
+:root {
+  /* Brand */
+  --brand-primary: #9945ff;    /* main actions, highlights */
+  --brand-secondary: #38bdf8;  /* links, informational accents */
+  --brand-accent: #14f195;     /* success, "live", positive numbers */
+  --brand-gradient: linear-gradient(120deg, var(--brand-primary), var(--brand-secondary) 50%, var(--brand-accent));
+
+  /* Feedback */
+  --danger: #fb7185;           /* refusals, suspensions, errors */
+
+  /* Surfaces */
+  --surface: #06060c;          /* page background */
+  --surface-card: rgb(13 13 24 / 0.92);
+  --on-brand: #06060c;         /* text on top of brand colours */
+  --text: #f1f5f9;             /* text inside form fields */
+  --placeholder: rgb(148 163 184 / 0.38); /* hint text: clearly fainter than real values */
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}

@@ -67,7 +67,7 @@ app/       off-chain: the Python/Django application and its tests
 | `rxtrail/` | the domain in plain Python: entities, the prescription rules, use cases, and the ports it needs |
 | `solana_client/` | adapter to the on-chain program: builds and signs transactions from the program's IDL, follows confirmations over WebSocket, maps program errors to domain errors |
 | `records/` | adapter to the off-chain store (Postgres): patients, the link to their random on-chain id, prescription documents and salts |
-| `web/` | entry points: the `rxtrail` command today, web pages next |
+| `web/` | entry points: the `rxtrail` command and the web app (one dashboard per role, public verification page). The visual identity is a handful of tokens in `web/static/web/tokens.css`; `/styleguide/` previews every component (development only) |
 | `config/` | Django settings and the composition root wiring ports to adapters |
 
 The rules live twice, on purpose. The on-chain program enforces them and is
@@ -232,3 +232,9 @@ there (`just deploy localnet`). CI runs everything on each push.
 - Demo web app: prescriber issues, pharmacy dispenses, auditor verifies
 - Cancellation and corrections (reversal records)
 - Upgrade authority under a multisig of authorities; verifiable builds
+
+## Team
+
+Built by **Gustavo Rizzo S. M. de Albuquerque** —
+[GitHub](https://github.com/GustavoRizzo) ·
+[LinkedIn](https://www.linkedin.com/in/gustavo-albuquerque/).

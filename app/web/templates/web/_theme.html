@@ -1,0 +1,15 @@
+{% load static %}
+{# Tailwind utilities mapped onto the identity tokens in static/web/tokens.css. #}
+<link rel="stylesheet" href="{% static 'web/tokens.css' %}">
+<style type="text/tailwindcss">
+  @theme inline {
+    --color-brand-primary: var(--brand-primary);
+    --color-brand-secondary: var(--brand-secondary);
+    --color-brand-accent: var(--brand-accent);
+    --color-danger: var(--danger);
+    --color-surface: var(--surface);
+    --color-on-brand: var(--on-brand);
+    --font-sans: var(--font-sans);
+    --font-mono: var(--font-mono);
+  }
+</style>

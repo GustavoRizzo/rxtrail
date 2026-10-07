@@ -56,6 +56,10 @@ class PrescriptionLedger(Protocol):
 
     async def prescription(self, prescription_id: bytes) -> Prescription | None: ...
 
+    async def prescriptions_by_id(self, ids: Sequence[bytes]) -> list[Prescription | None]:
+        """Many prescriptions in one round trip, in the order asked; None if missing."""
+        ...
+
     async def participant_status(self, role: str, participant: str) -> ParticipantStatus | None:
         """On-chain status of a prescriber or dispenser; None if never enabled."""
         ...

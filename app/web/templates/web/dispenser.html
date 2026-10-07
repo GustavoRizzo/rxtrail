@@ -8,7 +8,7 @@
 </div>
 
 <form method="get" class="rx-card rx-reveal flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
-  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#9945ff]/15"><i data-lucide="scan-line" class="h-5 w-5 text-[#9945ff]"></i></span>
+  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-primary/15"><i data-lucide="scan-line" class="h-5 w-5 text-brand-primary"></i></span>
   <input name="rx" value="{{ prescription_id }}" required minlength="64" maxlength="64" placeholder="Prescription id presented by the patient" class="rx-input font-mono text-sm">
   <button class="rx-button flex shrink-0 items-center justify-center gap-2 px-5 py-2.5"><i data-lucide="search" class="h-4 w-4"></i> Look up</button>
 </form>
@@ -50,9 +50,9 @@
           </form>
           <p class="mt-3 text-xs text-slate-500">Hand the medication over only after the confirmation appears. Asking for more than remains is refused by the chain itself.</p>
         {% else %}
-          <p class="mt-6 flex items-center gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="ban" class="h-4 w-4 text-rose-400"></i> Nothing left to dispense on this prescription.</p>
+          <p class="mt-6 flex items-center gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="ban" class="h-4 w-4 text-danger"></i> Nothing left to dispense on this prescription.</p>
         {% endif %}
-        <a href="{% url 'web:prescription' prescription_id %}" class="mt-5 inline-flex items-center gap-1 text-sm text-[#38bdf8] hover:underline">Full audit trail <i data-lucide="arrow-right" class="h-4 w-4"></i></a>
+        <a href="{% url 'web:prescription' prescription_id %}" class="mt-5 inline-flex items-center gap-1 text-sm text-brand-secondary hover:underline">Full audit trail <i data-lucide="arrow-right" class="h-4 w-4"></i></a>
       </section>
     {% else %}
       <div class="rx-card rx-reveal p-12 text-center text-slate-500">
