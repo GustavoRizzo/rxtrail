@@ -485,3 +485,123 @@ def test_the_public_catalog_and_its_open_data(client, cast):
     assert medication["address"] == medication_address(MEDICATION_ID)
     assert {p["brand_name"] for p in medication["products"]} == {"Calmazen 2 mg", "Clonazepam Beta"}
     assert data["identity_fields"]["medication"] == ["active_ingredient", "strength", "form"]
+
+
+# -- patient copy and QR code -----------------------------------------------------------
+
+
+def patient_link(rx):
+    return f"/p/{PrescriptionRecord.objects.get(prescription_id=rx).patient_token}/"
+
+
+def test_the_issuing_prescriber_hands_over_a_link_and_a_qr_code(client, cast):
+    response, rx = issue(client)
+    client.login(username="dr", password="pw")
+
+    page = client.get(response["Location"]).content.decode()
+
+    assert "Hand it to the patient" in page
+    assert f"http://testserver{patient_link(rx)}" in page
+    assert 'class="rx-qr"' in page
+
+
+@pytest.mark.parametrize("viewer", ["pharmacy", "inspector", "other-dr", None])
+def test_only_the_issuing_prescriber_sees_the_patient_link(client, cast, viewer):
+    make("other-dr", Role.PRESCRIBER)
+    _, rx = issue(client)
+    if viewer:
+        client.login(username=viewer, password="pw")
+
+    page = client.get(f"/rx/{rx}/").content.decode()
+
+    assert patient_link(rx) not in page and "Hand it to the patient" not in page
+
+
+def test_every_prescription_gets_its_own_unguessable_patient_link(client, cast):
+    issue_many(client, ("Maria Silva", "Clonazepam", 30), ("Ana Costa", "Clonazepam", 10))
+
+    tokens = list(PrescriptionRecord.objects.values_list("patient_token", flat=True))
+
+    assert len(set(tokens)) == 2 and all(len(t) >= 24 for t in tokens)
+
+
+def test_the_patient_copy_opens_without_an_account(client, cast):
+    _, rx = issue(client, instructions="Take with water")
+
+    response = client.get(patient_link(rx))
+    page = response.content.decode()
+
+    assert response.status_code == 200
+    for useful in ("Maria Silva", "1 at night", "Take with water", "Dr", "30", "Valid"):
+        assert useful in page, useful
+    assert "Calmazen 2 mg" in page and "Clonazepam Beta" in page  # any version accepted
+    assert "Generics are usually cheaper" in page
+    assert "Genuine and unaltered" in page  # the document matches the on-chain hash
+    assert 'class="rx-qr"' in page and f"/rx/{rx}/" in page
+
+
+def test_the_patient_copy_is_kept_out_of_caches_and_search_engines(client, cast):
+    _, rx = issue(client)
+
+    response = client.get(patient_link(rx))
+
+    assert "no-store" in response["Cache-Control"]
+    assert response["Referrer-Policy"] == "no-referrer"
+    assert "noindex" in response["X-Robots-Tag"]
+
+
+def test_a_wrong_patient_link_finds_nothing(client, cast):
+    issue(client)
+    assert client.get("/p/not-a-real-token/").status_code == 404
+
+
+def test_the_patient_copy_lists_only_the_locked_brand(client, cast):
+    _, rx = issue(client, locked_product_id=REFERENCE_ID.hex())
+
+    page = client.get(patient_link(rx)).content.decode()
+
+    assert "Only this brand" in page and "Calmazen 2 mg" in page
+    assert "Clonazepam Beta" not in page
+
+
+def test_the_patient_copy_shows_what_was_collected_and_what_remains(client, cast):
+    _, rx = issue(client)
+    dispense(client, rx, 10, product=GENERIC_ID)
+    client.logout()
+
+    page = client.get(patient_link(rx)).content.decode()
+
+    assert "Nothing collected yet" not in page
+    assert "10 tablets · Clonazepam Beta" in page and "Oct 1, 2026" in page
+    assert "of 30 tablets" in page
+
+
+def test_the_pharmacy_looks_up_what_the_qr_code_holds(client, cast):
+    _, rx = issue(client)
+    client.login(username="pharmacy", password="pw")
+
+    page = client.get("/dispenser/", {"rx": f"http://testserver/rx/{rx}/"}).content.decode()
+
+    assert "Maria Silva" in page and "Sign and dispense" in page
+
+
+def test_the_pharmacy_is_told_when_a_scan_is_not_a_prescription(client, cast):
+    client.login(username="pharmacy", password="pw")
+
+    page = client.get("/dispenser/", {"rx": "https://example.com/menu"}).content.decode()
+
+    assert "not a prescription id" in page
+
+
+def test_a_pharmacy_scanning_with_a_phone_can_go_on_to_dispense(client, cast):
+    _, rx = issue(client)
+    client.login(username="pharmacy", password="pw")
+
+    page = client.get(f"/rx/{rx}/").content.decode()
+
+    assert f"/dispenser/?rx={rx}" in page and "Dispense at the counter" in page
+
+
+def test_verify_accepts_the_qr_codes_link(client, cast):
+    response = client.get("/verify/", {"id": f"https://rxtrail.example/rx/{'AB' * 32}/"})
+    assert response["Location"] == f"/rx/{'ab' * 32}/"

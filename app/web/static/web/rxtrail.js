@@ -89,3 +89,61 @@ window.rxMedicationPicker = (chosenScript, searchUrl, locked, quantity, days) =>
     return found;
   },
 });
+
+// The pharmacy counter's camera scanner (jsQR, loaded by dispenser.html).
+// What it reads goes into the lookup field and the form is sent: the server
+// takes the prescription id out of the QR code's link.
+window.rxScanner = () => ({
+  open: false,
+  error: "",
+  stream: null,
+
+  async start() {
+    this.open = true;
+    this.error = "";
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.error = "No camera here (it needs HTTPS or localhost). Use a USB reader or type the id.";
+      return;
+    }
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+    } catch (e) {
+      this.error = `Camera unavailable: ${e.message}`;
+      return;
+    }
+    const video = this.$refs.video;
+    video.srcObject = this.stream;
+    await video.play();
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const scan = () => {
+      if (!this.open) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = window.jsQR?.(frame.data, frame.width, frame.height, {
+          inversionAttempts: "attemptBoth",
+        });
+        if (code?.data) return this.read(code.data);
+      }
+      requestAnimationFrame(scan);
+    };
+    requestAnimationFrame(scan);
+  },
+
+  read(text) {
+    this.stop();
+    this.$refs.input.value = text;
+    this.$refs.input.form.submit();
+  },
+
+  stop() {
+    this.open = false;
+    this.stream?.getTracks().forEach((track) => track.stop());
+    this.stream = null;
+  },
+});

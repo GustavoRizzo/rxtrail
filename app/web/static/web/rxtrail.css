@@ -170,5 +170,29 @@ select.rx-input { appearance: none; padding-right: 2.25rem; cursor: pointer; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
+/* QR codes: dark modules on light paper whatever the theme (scanners expect
+   it), with a quiet margin around. The SVG comes from web/qrcodes.py. */
+.rx-qr-frame { background: var(--paper); border-radius: 1rem; padding: 0.75rem; }
+.rx-qr { display: block; width: 100%; height: auto; shape-rendering: crispEdges; }
+.rx-qr path { stroke: var(--ink); }
+
+/* Printing (the patient's copy): ink on paper, no chrome, no effects. */
+@media print {
+  @page { margin: 14mm; }
+  body, .rx-backdrop { background: var(--paper) !important; }
+  .rx-backdrop::before, .rx-backdrop::after, .rx-no-print { display: none !important; }
+  body * {
+    color: var(--ink) !important;
+    background: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+  }
+  .rx-card { border: 1px solid var(--ink) !important; break-inside: avoid; }
+  .rx-progress { border: 1px solid var(--ink); }
+  .rx-progress > span { background: var(--ink) !important; }
+  main { max-width: none !important; padding: 0 !important; }
+}
+
 /* Alpine: hide x-cloak'd elements until Alpine has started. */
 [x-cloak] { display: none !important; }

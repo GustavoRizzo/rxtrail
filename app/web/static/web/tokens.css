@@ -40,6 +40,10 @@
   --text: #f1f5f9;             /* text inside form fields */
   --placeholder: rgb(148 163 184 / 0.38); /* hint text: clearly fainter than real values */
 
+  /* Paper: QR codes (scanners need dark on light) and printouts */
+  --paper: #ffffff;
+  --ink: #0b0b14;
+
   /* Typography */
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;

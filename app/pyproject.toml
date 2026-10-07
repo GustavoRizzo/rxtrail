@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "django>=6.1.1",
     "psycopg[binary]>=3.3.5",
+    "segno>=1.6.6",
     "solana>=0.40.3",
     "solders>=0.29.0",
 ]

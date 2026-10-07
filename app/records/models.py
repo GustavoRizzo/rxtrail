@@ -1,5 +1,12 @@
+import secrets
+
 from django.conf import settings
 from django.db import models
+
+
+def new_patient_token() -> str:
+    """The secret in the patient's link to their copy: random, unguessable."""
+    return secrets.token_urlsafe(18)
 
 
 class Patient(models.Model):
@@ -30,6 +37,9 @@ class PrescriptionRecord(models.Model):
     document = models.JSONField()
     # Hex of the random salt mixed into the on-chain hash.
     salt = models.CharField(max_length=64)
+    # Opens the patient's copy (/p/<token>/) without an account: whoever holds
+    # the link reads the document, like whoever holds a paper prescription.
+    patient_token = models.CharField(max_length=32, unique=True, default=new_patient_token)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

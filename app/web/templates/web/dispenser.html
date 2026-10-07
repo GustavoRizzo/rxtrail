@@ -7,11 +7,32 @@
   <h1 class="text-3xl font-bold text-white">{{ user.participant.display_name }}</h1>
 </div>
 
+{# A USB QR reader types what it reads into the focused field, then Enter: #}
+{# the field takes the QR code's link as well as a bare id. #}
+<div x-data="rxScanner()" @keydown.escape.window="stop()">
 <form method="get" class="rx-card rx-reveal flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
   <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-primary/15"><i data-lucide="scan-line" class="h-5 w-5 text-brand-primary"></i></span>
-  <input name="rx" value="{{ prescription_id }}" required minlength="64" maxlength="64" placeholder="Prescription id presented by the patient" class="rx-input font-mono text-sm">
+  <input name="rx" x-ref="input" value="{{ prescription_id }}" required {% if not found %}autofocus{% endif %} autocomplete="off" placeholder="Scan the patient's QR code, or type the prescription id" class="rx-input font-mono text-sm">
+  <button type="button" @click="start()" class="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-200 hover:bg-white/5"><i data-lucide="scan-qr-code" class="h-4 w-4"></i> Scan</button>
   <button class="rx-button flex shrink-0 items-center justify-center gap-2 px-5 py-2.5"><i data-lucide="search" class="h-4 w-4"></i> Look up</button>
 </form>
+
+  {# Outside the card: a backdrop-filter would trap this fixed overlay inside it. #}
+  <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-50 grid place-items-center bg-surface/80 p-4 backdrop-blur" @click.self="stop()">
+    <div class="rx-card w-full max-w-md p-5">
+      <div class="mb-3 flex items-center justify-between">
+        <p class="flex items-center gap-2 font-semibold text-white"><i data-lucide="camera" class="h-5 w-5 text-brand-primary"></i> Point the camera at the QR code</p>
+        <button type="button" @click="stop()" class="text-slate-500 hover:text-slate-200"><i data-lucide="x" class="h-5 w-5"></i><span class="sr-only">Close</span></button>
+      </div>
+      <div class="relative overflow-hidden rounded-2xl bg-white/5">
+        <video x-ref="video" playsinline muted class="aspect-square w-full object-cover"></video>
+        <span class="pointer-events-none absolute inset-[18%] rounded-2xl border-2 border-brand-accent/70"></span>
+      </div>
+      <p x-show="error" x-text="error" class="mt-3 flex items-center gap-2 text-sm text-danger"></p>
+      <p class="mt-3 text-xs text-slate-500">The code only holds the prescription's public link; its details come from the chain.</p>
+    </div>
+  </div>
+</div>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
   <div>
@@ -79,10 +100,11 @@
     {% else %}
       <div class="rx-card rx-reveal p-12 text-center text-slate-500">
         <i data-lucide="pill" class="mx-auto h-10 w-10"></i>
-        <p class="mt-3">Look up the prescription the patient presents.</p>
+        <p class="mt-3">Scan the QR code on the patient's copy, or type its id.</p>
       </div>
     {% endif %}
   </div>
   <div class="rx-reveal" style="--i:2">{% include "web/_activity.html" with title="Your recent dispensations" %}</div>
 </div>
 {% endblock %}
+{% block scripts %}<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>{% endblock %}

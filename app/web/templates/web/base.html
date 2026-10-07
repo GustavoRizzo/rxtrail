@@ -16,9 +16,10 @@
   <script src="https://cdn.jsdelivr.net/npm/lucide@1.52.0/dist/umd/lucide.min.js"></script>
   {% include "web/_theme.html" %}
   <link rel="stylesheet" href="{% static 'web/rxtrail.css' %}">
+  {% block head %}{% endblock %}
 </head>
 <body class="rx-backdrop min-h-full text-slate-200 antialiased">
-  <header class="sticky top-0 z-40 border-b border-white/5 bg-surface/70 backdrop-blur-xl">
+  <header class="rx-no-print sticky top-0 z-40 border-b border-white/5 bg-surface/70 backdrop-blur-xl">
     <nav class="mx-auto flex max-w-6xl items-center gap-4 px-5 py-3">
       <a href="{% url 'web:landing' %}" class="flex items-center gap-2 text-lg font-extrabold tracking-tight">
         <i data-lucide="shield-check" class="h-6 w-6 text-brand-accent"></i>
@@ -50,7 +51,7 @@
     </nav>
   </header>
 
-  <div class="fixed right-4 top-20 z-50 flex w-[min(28rem,calc(100%-2rem))] flex-col gap-3">
+  <div class="rx-no-print fixed right-4 top-20 z-50 flex w-[min(28rem,calc(100%-2rem))] flex-col gap-3">
     {% for message in messages %}
       <div x-data="{ open: true }" x-show="open" x-init="setTimeout(() => open = false, 9000)" x-transition.opacity.duration.400ms
            class="rx-toast rx-card flex items-start gap-3 p-4 text-sm shadow-2xl">
@@ -71,7 +72,7 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="mx-auto max-w-6xl px-5 pb-10 text-xs text-slate-500">
+  <footer class="rx-no-print mx-auto max-w-6xl px-5 pb-10 text-xs text-slate-500">
     <div class="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/5 pt-6">
       <span>Rules enforced by an on-chain program on Solana.</span>
       {% if debug_mode %}<a href="{% url 'web:styleguide' %}" class="flex items-center gap-1 hover:text-slate-300"><i data-lucide="palette" class="h-3.5 w-3.5"></i> Style guide</a>{% endif %}
@@ -87,5 +88,6 @@
       {% if demo_mode %}<span class="flex items-center gap-1"><i data-lucide="key-round" class="h-3.5 w-3.5"></i> Demo mode: keys are held by the server. In production each participant signs with their own wallet.</span>{% endif %}
     </div>
   </footer>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

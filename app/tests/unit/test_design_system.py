@@ -96,6 +96,14 @@ def test_placeholders_are_visible_but_fainter_than_values(bg):
     assert 1.8 <= contrast("placeholder", bg) < contrast("text", bg)
 
 
+def test_qr_codes_and_printouts_are_dark_on_light_with_ample_contrast():
+    # Scanners read dark modules on a light background; 7:1 survives a cheap
+    # printer or a dim phone screen.
+    assert luminance(colour("ink")) < luminance(colour("paper"))
+    assert contrast("ink", "paper") >= 7
+    assert COLOURS["paper"][3] == COLOURS["ink"][3] == 1.0
+
+
 def test_the_browser_is_told_the_theme():
     assert re.search(r":root\s*{[^}]*color-scheme\s*:\s*(dark|light)", TOKENS)
 

@@ -16,7 +16,8 @@ from django.contrib.auth import views as auth_views
 from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from config import container
@@ -36,7 +37,7 @@ from rxtrail.domain import (
     RxTrailError,
     Standing,
 )
-from web import catalog
+from web import catalog, qrcodes
 from web.chain import with_chain
 from web.forms import DispenseForm, EnableParticipantForm, IssueForm, PrescriptionFilterForm
 
@@ -139,12 +140,19 @@ def home(request):
 
 
 def verify(request):
-    """Look a prescription up by id, from anywhere."""
-    prescription_id = request.GET.get("id", "").strip().lower()
-    if len(prescription_id) != 64:
+    """Look a prescription up by id (or the link in its QR code), from anywhere."""
+    prescription_id = qrcodes.prescription_id_in(request.GET.get("id", ""))
+    if prescription_id is None:
         messages.error(request, "A prescription id has 64 hexadecimal characters.")
         return redirect(request.META.get("HTTP_REFERER") or "web:landing")
     return redirect("web:prescription", prescription_id=prescription_id)
+
+
+def _verification_qr(request, prescription_id: str):
+    """The QR code printed on the prescription: its public verification link."""
+    return qrcodes.svg(
+        request.build_absolute_uri(reverse("web:prescription", args=[prescription_id]))
+    )
 
 
 def prescription(request, prescription_id: str):
@@ -174,14 +182,14 @@ def prescription(request, prescription_id: str):
     participant = (
         getattr(request.user, "participant", None) if request.user.is_authenticated else None
     )
-    can_read = participant is not None and (
-        participant.role == Role.DISPENSER
-        or (
-            participant.role == Role.PRESCRIBER
-            and record
-            and record.prescriber == participant.key_name
-        )
+    issued_it = (
+        participant is not None
+        and participant.role == Role.PRESCRIBER
+        and record is not None
+        and record.prescriber == participant.key_name
     )
+    is_pharmacy = participant is not None and participant.role == Role.DISPENSER
+    can_read = issued_it or is_pharmacy
     return render(
         request,
         "web/prescription.html",
@@ -196,8 +204,74 @@ def prescription(request, prescription_id: str):
                 prescription_id=prescription_id
             )[:20],
             "names": _names(),
+            "is_pharmacy": is_pharmacy,
+            # Only the issuing prescriber hands the patient their copy.
+            "patient_link": (
+                request.build_absolute_uri(reverse("web:patient_copy", args=[record.patient_token]))
+                if issued_it
+                else None
+            ),
+            "qr": _verification_qr(request, prescription_id) if issued_it else None,
         },
     )
+
+
+def patient_copy(request, token: str):
+    """The patient's copy: everything they need, behind the secret in their link.
+
+    No account: the patient has no login. Whoever holds the link reads it, as
+    whoever holds a paper prescription does; the QR code on it holds no
+    personal data, only the public verification link.
+    """
+    record = get_object_or_404(
+        PrescriptionRecord.objects.select_related("patient"), patient_token=token
+    )
+    prescription_id = record.prescription_id
+    try:
+        trail = with_chain(lambda app, _ledger: app.audit(bytes.fromhex(prescription_id)))
+    except RxTrailError as exc:
+        _fail(request, exc)
+        return redirect("web:landing")
+    rx = trail.prescription
+    listed = catalog.cards(
+        CatalogMedication.objects.prefetch_related("products__manufacturer").filter(
+            address=rx.medication
+        )
+    )
+    medication = listed[0] if listed else None
+    named = catalog.by_address([d.product for d in trail.dispensations])
+    now = datetime.now(UTC)
+    response = render(
+        request,
+        "web/patient.html",
+        {
+            "record": record,
+            "document": record.document,
+            "trail": trail,
+            "rx": rx,
+            "standing": rx.standing(now),
+            "days_left": max((rx.expires_at - now).days, 0),
+            "medication": medication,
+            # Which boxes a pharmacy may hand over: the locked brand only, or
+            # any version still on the market (generics are usually cheaper).
+            "accepted": [
+                p
+                for p in (medication.products if medication else [])
+                if p.available
+                and (rx.prescribed_product is None or p.record.address == rx.prescribed_product)
+            ],
+            "products": named,
+            "names": _names(),
+            "prescriber": Participant.objects.filter(key_name=record.prescriber).first(),
+            "verify_url": reverse("web:prescription", args=[prescription_id]),
+            "qr": _verification_qr(request, prescription_id),
+        },
+    )
+    # A secret link: keep it out of caches, search engines and Referer headers.
+    response["Cache-Control"] = "private, no-store"
+    response["Referrer-Policy"] = "no-referrer"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 # -- prescriber ------------------------------------------------------------------
@@ -246,7 +320,7 @@ def prescriber(request):
                 issued.receipt.signature,
             )
             messages.success(
-                request, f"Prescription issued on-chain. Share its id with the patient: {rx}"
+                request, "Prescription issued on-chain. Hand the patient their copy below."
             )
             for warning in rules_of_thumb.warnings(
                 medication_details(chosen), data["quantity"], data["valid_days"]
@@ -336,8 +410,12 @@ def _prescriber_rows(me, wanted) -> tuple[list[_Row], int]:
 @role_required(Role.DISPENSER)
 def dispenser(request):
     me = request.participant
-    prescription_id = request.GET.get("rx", "").strip().lower()
+    # What the counter's scanner read: the QR code's link, or an id typed in.
+    scanned = request.GET.get("rx", "").strip()
+    prescription_id = qrcodes.prescription_id_in(scanned) or ""
     found = record = medication = None
+    if scanned and not prescription_id:
+        messages.error(request, "That is not a prescription id or a prescription's QR code.")
     if prescription_id:
         try:
             found = with_chain(

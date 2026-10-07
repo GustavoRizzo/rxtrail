@@ -11,6 +11,7 @@ urlpatterns = [
     path("home/", views.home, name="home"),
     path("verify/", views.verify, name="verify"),
     path("rx/<str:prescription_id>/", views.prescription, name="prescription"),
+    path("p/<str:token>/", views.patient_copy, name="patient_copy"),
     path("prescriber/", views.prescriber, name="prescriber"),
     path("dispenser/", views.dispenser, name="dispenser"),
     path("dispenser/dispense/", views.dispense, name="dispense"),
