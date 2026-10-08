@@ -342,7 +342,7 @@ def test_password_fields_can_be_revealed(client, cast):
     assert "Show password" in login and "eye-off" in login
 
 
-def test_authors_are_credited_in_the_footer_and_metadata(client, settings):
+def test_authors_are_credited_in_the_footer_and_metadata(client, settings, ledger):
     settings.RXTRAIL_AUTHORS = [{"name": "Ada Example", "github": "https://github.com/ada"}]
     page = client.get("/").content.decode()
     assert '<meta name="author" content="Ada Example">' in page
@@ -877,3 +877,26 @@ def test_the_insights_read_only_public_sources():
         source = inspect.getsource(module)
         for private in ("PrescriptionRecord", "Patient", "Participant", "Activity"):
             assert private not in source, (module.__name__, private)
+
+
+def test_the_front_page_invites_everyone_to_audit_with_live_numbers(client, network):
+    page = client.get("/").content.decode()
+
+    assert "Audit it yourself" in page
+    for url in INSIGHT_PAGES[2:]:
+        assert f'href="{url}"' in page, url
+    assert "Read from the chain a moment ago" in page
+    assert ">3</dd>" in page  # the three prescriptions on the fake chain
+
+
+def test_the_front_page_stands_when_the_chain_is_out_of_reach(client, ledger, monkeypatch):
+    from rxtrail.domain import LedgerUnavailableError
+    from web.insights import forget
+
+    def unreachable(*_args, **_kwargs):
+        raise LedgerUnavailableError("node down")
+
+    forget()
+    monkeypatch.setattr("web.insights.with_chain", unreachable)
+    page = client.get("/").content.decode()
+    assert "Audit it yourself" in page and "Read from the chain" not in page

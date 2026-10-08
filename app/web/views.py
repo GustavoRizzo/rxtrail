@@ -39,7 +39,7 @@ from rxtrail.domain import (
     RxTrailError,
     Standing,
 )
-from web import catalog, qrcodes
+from web import catalog, insights_views, qrcodes
 from web.chain import with_chain
 from web.context_processors import ROLE_LABELS
 from web.forms import (
@@ -107,7 +107,7 @@ def _log(participant, action, summary, prescription_id="", signature=""):
 def landing(request):
     if request.user.is_authenticated:
         return redirect("web:home")
-    return render(request, "web/landing.html")
+    return render(request, "web/landing.html", {"audit": insights_views.teaser()})
 
 
 # Demo mode: the login page groups the accounts by role, each with what a

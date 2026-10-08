@@ -1,4 +1,5 @@
 {% extends "web/base.html" %}
+{% load rxtrail %}
 {% block title %}Tamper-proof prescriptions{% endblock %}
 {% block content %}
 <section class="rx-reveal mx-auto max-w-3xl pb-14 pt-8 text-center">
@@ -15,8 +16,9 @@
   </p>
   <div class="mt-8 flex flex-wrap justify-center gap-3">
     <a href="{% url 'web:login' %}" class="rx-button flex items-center gap-2 px-6 py-3"><i data-lucide="log-in" class="h-4 w-4"></i> Try the demo</a>
-    <a href="https://github.com/GustavoRizzo/rxtrail" target="_blank" class="flex items-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-slate-300 transition hover:bg-white/5"><i data-lucide="code-xml" class="h-4 w-4"></i> Source code</a>
+    <a href="{% url 'web:insights' %}" class="flex items-center gap-2 rounded-xl border border-brand-accent/40 bg-brand-accent/10 px-6 py-3 font-semibold text-slate-100 transition hover:bg-brand-accent/20"><i data-lucide="radar" class="h-4 w-4 text-brand-accent"></i> Audit it yourself</a>
   </div>
+  <p class="mt-4 text-sm text-slate-500">The audit is open to anyone, no sign-in. Or read the <a href="https://github.com/GustavoRizzo/rxtrail" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-slate-300 hover:text-brand-secondary"><i data-lucide="code-xml" class="h-3.5 w-3.5"></i> source code</a>.</p>
 </section>
 
 <section class="grid gap-5 sm:grid-cols-3">
@@ -37,5 +39,47 @@
   </div>
 </section>
 
-<section class="mt-10 rx-reveal" style="--i:4">{% include "web/_verify_box.html" %}</section>
+<section class="rx-card rx-reveal mt-10 overflow-hidden p-7 sm:p-10" style="--i:4" id="audit">
+  <div class="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
+    <div>
+      <p class="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-brand-accent"><i data-lucide="radar" class="h-4 w-4"></i> Public-interest auditing</p>
+      <h2 class="mt-3 text-3xl font-extrabold leading-tight text-white sm:text-4xl">Don't trust us.<br><span class="rx-gradient-text">Audit it yourself.</span></h2>
+      <p class="mt-4 text-slate-300">Every prescription and every fill is a public account on Solana. The insights read them live, with the open catalog, and look for patterns worth a closer look: a drug pushed far above peers, a pharmacy that avoids generics, a brand locked again and again, a volume out of line.</p>
+      <p class="mt-3 text-sm text-slate-400">No sign-in, no access to ask for, no trust in us: anyone can download the same data and get the same numbers. Nothing about patients is on the chain.</p>
+      {% if audit %}{% with o=audit.overview %}
+        <dl class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-2xl bg-white/5 p-4"><dt class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescription'|icon }}" class="h-3.5 w-3.5"></i> Prescriptions</dt><dd class="mt-1 text-2xl font-bold text-white">{{ o.prescriptions }}</dd></div>
+          <div class="rounded-2xl bg-white/5 p-4"><dt class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'fill'|icon }}" class="h-3.5 w-3.5"></i> Fills</dt><dd class="mt-1 text-2xl font-bold text-white">{{ o.dispensations }}</dd></div>
+          <div class="rounded-2xl bg-white/5 p-4"><dt class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescriber'|icon }}" class="h-3.5 w-3.5"></i> Prescribers</dt><dd class="mt-1 text-2xl font-bold text-white">{{ o.prescribers }}</dd></div>
+          <div class="rounded-2xl bg-white/5 p-4"><dt class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'signal'|icon }}" class="h-3.5 w-3.5"></i> Signals</dt><dd class="mt-1 text-2xl font-bold rx-gradient-text">{{ audit.signals }}</dd></div>
+        </dl>
+        <p class="mt-2 text-xs text-slate-500">Read from the chain a moment ago.</p>
+      {% endwith %}{% endif %}
+      <a href="{% url 'web:insights' %}" class="rx-button mt-6 inline-flex items-center gap-2 px-6 py-3"><i data-lucide="radar" class="h-4 w-4"></i> Open the insights <i data-lucide="arrow-right" class="h-4 w-4"></i></a>
+    </div>
+
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">Start from a question an authority would ask</p>
+      <div class="mt-3 grid gap-3">
+        {% for name, label, icon, question in audit.questions|default:"" %}
+          <a href="{% url name %}" class="rx-card rx-card-hover flex items-center gap-4 p-4">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-primary/15"><i data-lucide="{{ icon }}" class="h-5 w-5 text-brand-primary"></i></span>
+            <span class="min-w-0 flex-1"><span class="block font-semibold text-white">{{ question }}</span><span class="block text-xs text-slate-500">{{ label }}</span></span>
+            <i data-lucide="arrow-right" class="h-4 w-4 shrink-0 text-slate-500"></i>
+          </a>
+        {% empty %}
+          <a href="{% url 'web:insights' %}" class="rx-card rx-card-hover flex items-center gap-4 p-4 text-slate-300"><i data-lucide="radar" class="h-5 w-5 text-brand-primary"></i> Who is pushing a new drug? Which pharmacies avoid generics? Who locks the brand?</a>
+        {% endfor %}
+      </div>
+      <ol class="mt-6 grid gap-3 text-sm sm:grid-cols-3">
+        <li class="rounded-2xl border border-white/10 p-4"><i data-lucide="{{ 'signal'|icon }}" class="h-4 w-4 text-brand-secondary"></i><p class="mt-2 font-semibold text-slate-100">1. See what stands out</p><p class="mt-1 text-xs text-slate-400">Each one against its peers, by public key.</p></li>
+        <li class="rounded-2xl border border-white/10 p-4"><i data-lucide="{{ 'prescription'|icon }}" class="h-4 w-4 text-brand-secondary"></i><p class="mt-2 font-semibold text-slate-100">2. Open the records</p><p class="mt-1 text-xs text-slate-400">Every number links to the prescriptions behind it.</p></li>
+        <li class="rounded-2xl border border-white/10 p-4"><i data-lucide="{{ 'verified'|icon }}" class="h-4 w-4 text-brand-secondary"></i><p class="mt-2 font-semibold text-slate-100">3. Check the proof</p><p class="mt-1 text-xs text-slate-400">Each record opens on the Solana explorer.</p></li>
+      </ol>
+    </div>
+  </div>
+  <p class="mt-8 flex items-start gap-2 text-xs text-slate-500"><i data-lucide="info" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-secondary"></i> Signals for investigation, not findings: a number that stands out often has a legitimate explanation, and conclusions belong to the competent authority.</p>
+</section>
+
+<section class="mt-10 rx-reveal" style="--i:5">{% include "web/_verify_box.html" %}</section>
 {% endblock %}

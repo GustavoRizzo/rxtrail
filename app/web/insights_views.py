@@ -263,6 +263,20 @@ def home(request):
     )
 
 
+def teaser() -> dict | None:
+    """What the site's front page shows of the insights: the live numbers and
+    the questions. None when the chain is out of reach (the page goes on)."""
+    try:
+        data = public_data()
+    except RxTrailError:
+        return None
+    return {
+        "overview": insights.overview(data, datetime.now(UTC)),
+        "signals": _signal_count(data),
+        "questions": TABS[1:],
+    }
+
+
 def _signal_count(data: insights.PublicData) -> int:
     return (
         sum(
