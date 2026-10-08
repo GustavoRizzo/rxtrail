@@ -202,3 +202,21 @@ def test_every_closure_reason_has_a_variant_on_chain():
 
     for reason in ClosureReason:
         assert _value(_variant(reason.value)) == reason.value
+
+
+@pytest.mark.parametrize(
+    ("account", "size"),
+    # Measured: the data length of every account the demo created on devnet.
+    [
+        ("Config", 105),
+        ("Prescriber", 58),
+        ("Dispenser", 58),
+        ("Medication", 90),
+        ("Product", 122),
+        ("Prescription", 199),
+        ("Dispensation", 125),
+        ("PrescriptionClosure", 91),
+    ],
+)
+def test_account_sizes_match_what_the_program_allocates(account, size):
+    assert IDL.account_size(account) == size

@@ -34,7 +34,9 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
 > [!NOTE]
 > Early build for the Colosseum hackathon (October 2026). The on-chain
 > program, the Python application and the web demo run end to end on a
-> local validator; the devnet deployment is next.
+> local validator and on **Solana devnet**, where the program lives at
+> [`Hv1GvjSSoF4naRh7wduFJ8x4dJi3E9W3VJ2u544uLrYC`](https://explorer.solana.com/address/Hv1GvjSSoF4naRh7wduFJ8x4dJi3E9W3VJ2u544uLrYC?cluster=devnet)
+> with the demo network seeded ([evidence](#-our-devnet-deployment)).
 
 > [!TIP]
 > **Run it in one command.** With [Docker](#-prerequisites) and
@@ -49,7 +51,7 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
 - [Quick start](#-quick-start) · [Prerequisites](#-prerequisites) · [Step by step](#-step-by-step)
 - [Try it in the browser](#️-try-it-in-the-browser) · [Explore the investigations](#-explore-the-investigations)
 - [Day-to-day commands](#-day-to-day-commands) · [The command line](#️-the-command-line)
-- [Environments: localnet and devnet](#-environments-localnet-and-devnet) · [What it costs](#-what-it-costs)
+- [Environments: localnet and devnet](#-environments-localnet-and-devnet) · [Devnet](#-devnet-public-test-network) · [Backups](#-backups) · [What it costs](#-what-it-costs)
 - [Tests](#-tests) · [Troubleshooting](#-troubleshooting) · [Contributing](#-contributing)
 - [Roadmap](#️-roadmap) · [Team](#-team)
 
@@ -157,6 +159,12 @@ Everything runs in Docker: Rust, Agave (Solana), Anchor, Python, Postgres.
 You install only two tools; no Solana wallet, keys or SOL are needed to run
 it locally.
 
+There are two ways to run RxTrail: on **localnet**, a private validator on
+your machine, or on **devnet**, Solana's public test network. **Start with
+localnet**: it is free, needs no SOL, and it is where every test runs and
+where the project was built. [Devnet](#-devnet-public-test-network) takes
+the same commands plus test SOL paid in advance (about 3.2 SOL to deploy).
+
 ```bash
 git clone https://github.com/GustavoRizzo/rxtrail
 cd rxtrail
@@ -258,8 +266,8 @@ anything is sent:
 
 | Profile | What | Devnet cost |
 |---|---|---|
-| `story` (default) | every investigation, with just enough peers to compare | ~0.6 SOL |
-| `full` | ~4× the network around the same stories | ~2.3 SOL; meant for localnet |
+| `story` (default) | every investigation, with just enough peers to compare | 0.65 SOL (measured) |
+| `full` | ~4× the network around the same stories | ~2.34 SOL; meant for localnet |
 
 ```bash
 just rx localnet demo --estimate                # what it would create and cost; sends nothing
@@ -316,6 +324,7 @@ Run `just` alone to list every command with a one-line description.
 | `just build && just deploy localnet` | rebuild and upgrade the program after changing the Rust code |
 | `just reset-localnet` | wipe the local chain **and** its database together, redeploy and set up again |
 | `just psql localnet` | open a SQL shell on the environment's database |
+| `just backup localnet` | save the environment's database and keys to one archive ([backups](#-backups)) |
 
 The web app reloads by itself when you edit the Python code or templates.
 
@@ -367,33 +376,88 @@ Three keys matter for running an environment:
 
 Participants (boards, regulators, prescribers, pharmacies) sign but never pay.
 
-### Devnet (public demo)
+### 📡 Devnet (public test network)
 
-Devnet SOL is free but rationed: use the [Solana faucet](https://faucet.solana.com)
-(connecting GitHub raises the limit) and check arrivals with
-`just status devnet`.
+Devnet runs the same program on Solana's public test network, where anyone
+can inspect every record on the explorer. Try it once localnet works for
+you; the commands are the same, with three differences:
+
+- **SOL paid in advance.** Devnet SOL is free but rationed: request it from
+  the [Solana faucet](https://faucet.solana.com) (connecting GitHub raises
+  the limit) and check arrivals with `just status devnet`. Deploying needs
+  **~3.2 SOL in the deployer** at that moment: the program's rent plus a
+  same-size temporary buffer, refunded at the end. The `story` demo needs
+  **~0.7 SOL in the operator**. See [what it costs](#-what-it-costs).
+- **Your own copy of the program.** A fresh clone deploys under its own
+  program id (see [step by step](#-step-by-step)), with its own keys and
+  database. It does not join [ours](#-our-devnet-deployment).
+- **A rationed public RPC.** Under load the public endpoint answers
+  *429 Too Many Requests*; the app waits and retries, so seeding the demo
+  takes a few minutes. To use a provider instead, set `SOLANA_RPC_URL` and
+  `SOLANA_WS_URL` in `envs/devnet.env`.
 
 ```bash
-just bootstrap devnet
-just build               # if you haven't already
-just status devnet       # deployer and operator addresses and balances
+just build                         # if you haven't already
+just bootstrap devnet              # its own database and web app (port 8143)
+just deploy devnet                 # first run: creates the deployer key and prints its address
 ```
 
-1. **Fund the deployer with ~3 SOL** (deploying needs about twice the
-   program's rent at that moment; see [costs](#-what-it-costs)), then deploy:
+1. **Fund the deployer** with ~3.2 SOL, then deploy again:
+   `just deploy devnet`. `just status devnet` now shows the program.
+2. **Set up**: `just rx devnet setup` creates the operator and authority
+   keys and prints the operator's address. Fund it with ~0.7 SOL and run
+   `setup` again. (Once the operator has SOL, `just fund-deployer devnet 1`
+   moves SOL to the deployer for later upgrades.)
+3. **Seed the demo**, seeing the cost first:
    ```bash
-   just deploy devnet
-   just status devnet    # the program now shows up
+   just rx devnet demo --estimate     # what it would create and cost; sends nothing
+   just rx devnet demo --yes          # a public network asks for --yes
    ```
-2. **Fund the operator with ~0.3 SOL** (~1 SOL for the `story` demo). Its
-   key is created by `setup`: run `just rx devnet setup` once to create it
-   and print its address, fund it, then run `setup` again. Keep ~1.5 SOL in
-   the deployer for future upgrades.
-3. **Run the flow** with `just rx devnet ...`, as above, and the web app at
-   <http://localhost:8143>.
+4. **Back up** right away: `just backup devnet` ([why](#-backups)).
+5. Optionally, `just publish-idl devnet` stores the program's interface
+   on-chain (~0.03 SOL), so the explorer shows instruction names instead of
+   raw bytes.
 
-Every address printed can be inspected on
-`https://explorer.solana.com/address/<address>?cluster=devnet`.
+The web app runs at <http://localhost:8143>, next to localnet's at 8142.
+Every address it shows links to the explorer.
+
+### 💾 Backups
+
+Every record lives half on-chain and half in the environment's database:
+names, logins, patients, the catalog's names and, in demo mode, the
+participants' keys. The chain cannot give that half back. Lose the database
+or `.keys/<network>/` and the records on devnet are still there, but nobody
+can use them, and seeding again pays for every record again.
+
+```bash
+just backup devnet                 # .keys/backups/rxtrail-devnet-<time>.tar.gz
+just restore devnet .keys/backups/rxtrail-devnet-<time>.tar.gz
+```
+
+The archive holds the database dump, every key of the environment and a
+manifest naming the chain it belongs to (genesis hash and program id). It
+contains private keys: keep it private, and copy it off the machine.
+`restore` refuses an archive from another environment and never overwrites
+a key that differs from the one in place. Both were tested by deleting an
+environment's database volume and one of its keys, then restoring: every
+record, login and key came back.
+
+### 🧾 Our devnet deployment
+
+We deployed RxTrail to devnet on 2026-10-08 with the same commands, from
+the binary `just build` produces (312,520 bytes), and seeded the `story`
+demo. Every link opens on the Solana explorer:
+
+| What | On devnet |
+|---|---|
+| Program | [`Hv1Gvj…LrYC`](https://explorer.solana.com/address/Hv1GvjSSoF4naRh7wduFJ8x4dJi3E9W3VJ2u544uLrYC?cluster=devnet) · deployed in [`5ArGwq…hkUg`](https://explorer.solana.com/tx/5ArGwqkq3oGheyCs4Mb6qhvoPzb9uiPF7s3eGbhEriSJPxgfpqh3a5aseZ5yN9an57yq8hjYmbjCvxiQcJwGhkUg?cluster=devnet) |
+| Configuration (`initialize`) | [`3uoY2w…LCPZ`](https://explorer.solana.com/tx/3uoY2w5cnJgoKwErSeWBEDicYCsGmyKn3V1DLW1NDev7CEH79xCFHeWxwXpyqGHq1SBiUjaRcd43X5LjbBp9LCPZ?cluster=devnet) |
+| Interface (IDL, Program Metadata) | [`AziFSM…baDj`](https://explorer.solana.com/address/AziFSMSgQdmwVF3MYEYWPjrdWxuXAtiZeS2GDfnqbaDj?cluster=devnet) |
+| A prescription filled in part | [`7jaL4A…pfu9`](https://explorer.solana.com/address/7jaL4AdMSPhzrYQSmzVbfhTVeHTiTvcaaRgvChb7pfu9?cluster=devnet) · issued in [`6irZqw…hVQJ`](https://explorer.solana.com/tx/6irZqwktYocKt836PudfbCM5MvRWBuNAeA2rbmwhhY1LpRf4TAD8BPPrARRtBnebKWZu4L8Z69rRovRXto2hVQJ?cluster=devnet) · filled in [`2By1zx…2K6Y`](https://explorer.solana.com/tx/2By1zxnxvPeJtHfJBH3FLRd7c49GcsWEuoSU3BZuvHupU33d15ZhtsGLTi3gKFbNzSP6mjBaASTNCHatB3SG2K6Y?cluster=devnet) |
+
+The program owns 448 accounts there: 204 prescriptions, 202 fills, 6
+closures, 18 prescribers and pharmacies, 17 catalog records and the
+configuration. Seeding them took 12 minutes through the public RPC.
 
 ## 💸 What it costs
 
@@ -403,24 +467,30 @@ created, proportional to its size. The deposit is locked, not spent: it
 comes back if the account is closed. RxTrail never closes its records,
 because they are the audit trail.
 
-| Paid by | When | Cost |
-|---|---|---|
-| deployer | first deploy | ~1.46 SOL locked in the program account (289 KB binary), plus a same-size temporary buffer refunded at the end: **~2.9 SOL needed at the moment of deploying** |
-| deployer | each upgrade | a temporary buffer again (~1.46 SOL, refunded), plus more rent only if the binary grows |
-| operator | `setup`, once | 0.00118 SOL (configuration record) |
-| operator | per prescriber or pharmacy registered | 0.00094 SOL |
-| operator | per medication / product in the catalog | 0.00110 / 0.00127 SOL |
-| operator | **per prescription** | **0.00166 SOL** |
-| operator | **per fill** | **0.00128 SOL** |
-| operator | per cancellation or discontinuation | 0.00111 SOL |
-| operator | per transaction | 0.000005 SOL |
+Every figure below was measured on devnet (2026-10-08), where rent is 5,080
+lamports per account byte plus 128 bytes of overhead per account. The app
+never assumes that rate: it asks the node, so `--estimate` is right on any
+network. For the `story` demo, the estimate matched what the operator
+actually paid to the lamport.
 
-Rent figures use devnet's rate (about 5,070 lamports per account byte, plus
-128 bytes of overhead per account). A prescription filled in three
-parts costs about **0.0055 SOL**,
-almost all of it rent that stays locked as the permanent record. The
-deployer pays once (and on upgrades); the operator pays as the system is
-used.
+| Paid by | When | Measured on devnet |
+|---|---|---|
+| deployer | first deploy | **1.5909 SOL**: 1.5885 locked in the program's data account (312,520-byte binary) plus fees. A same-size temporary buffer is refunded at the end, so **~3.2 SOL are needed at the moment of deploying** |
+| deployer | each upgrade | a temporary buffer again (~1.59 SOL, refunded), plus more rent only if the binary grows |
+| deployer | `publish-idl`, optional | 0.0259 SOL |
+| operator | `setup`, once | 0.00119 SOL (configuration record) |
+| operator | per prescriber or pharmacy registered | 0.00095 SOL |
+| operator | per medication / product in the catalog | 0.00112 / 0.00128 SOL |
+| operator | **per prescription** | **0.00167 SOL** |
+| operator | **per fill** | **0.00130 SOL** |
+| operator | per cancellation or discontinuation | 0.00112 SOL |
+| operator | **`story` demo** (447 transactions) | **0.6473 SOL** |
+
+Each operator figure is one account's rent plus one transaction with two
+signatures (operator and participant): 10,000 lamports. A prescription
+filled in three parts costs about **0.0056 SOL**, almost all of it rent that
+stays locked as the permanent record. The deployer pays once (and on
+upgrades); the operator pays as the system is used.
 
 ## 🧪 Tests
 
@@ -515,7 +585,6 @@ repeat, and the demo seed continues where it stopped.
 
 ## 🗺️ Roadmap
 
-- Devnet deployment
 - Corrections to a fill (reversal records)
 - Insights over time: filters by period, and adoption curves after a
   medication's launch

@@ -56,6 +56,12 @@ class Idl:
                 return name
         return None
 
+    def account_size(self, name: str) -> int:
+        """Bytes the program allocates for this account (Anchor's 8 +
+        INIT_SPACE): the discriminator plus the largest encoding, so an option
+        counts its value even when empty."""
+        return 8 + self._size({"defined": {"name": name}})
+
     def decode_account(self, name: str, data: bytes) -> dict[str, Any]:
         expected = self.account_discriminator(name)
         if data[:8] != expected:
@@ -88,6 +94,25 @@ class Idl:
                 names = [v["name"] for v in definition["variants"]]
                 return bytes([names.index(value)])
         raise NotImplementedError(f"encoding {kind}")
+
+    def _size(self, kind) -> int:
+        if isinstance(kind, dict) and "option" in kind:
+            return 1 + self._size(kind["option"])
+        if kind == "pubkey":
+            return 32
+        if isinstance(kind, str) and kind in _INTS:
+            return struct.calcsize(_INTS[kind])
+        if isinstance(kind, dict) and "array" in kind:
+            inner, size = kind["array"]
+            return size * self._size(inner)
+        if isinstance(kind, dict) and "defined" in kind:
+            definition = self._types[kind["defined"]["name"]]
+            if definition["kind"] == "enum":
+                if any(v.get("fields") for v in definition["variants"]):
+                    raise NotImplementedError("sizing an enum with data")
+                return 1
+            return sum(self._size(field["type"]) for field in definition["fields"])
+        raise NotImplementedError(f"sizing {kind}")
 
     def _decode(self, kind, data: bytes, offset: int) -> tuple[Any, int]:
         if isinstance(kind, dict) and "option" in kind:

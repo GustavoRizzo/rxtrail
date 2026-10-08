@@ -22,20 +22,21 @@ from django.contrib.auth import get_user_model
 from config import container
 from records.models import CatalogMedication, CatalogProduct, Participant, PrescriptionRecord
 from rxtrail.domain import PrescriptionDocument, ProductDetails, RxTrailError
+from solana_client.idl import Idl
 from web.demo.cast import CAST, NETWORK_PHARMACIES, Role, prescriber_name
 from web.demo.catalog import CATALOG
 from web.demo.plan import PROFILES, SHOWCASE, Planned, pharmacies, plan, prescribers
 
 # Every account locks a rent deposit, never returned: audit records are never
-# closed. The rate differs per network, so the node is asked. Sizes are
-# 8 + INIT_SPACE (program/programs/rxtrail/src/state.rs).
-ACCOUNT_BYTES = {
-    "participant": 58,
-    "medication": 90,
-    "product": 122,
-    "prescription": 207,
-    "dispensation": 125,
-    "closure": 91,
+# closed. The rate differs per network, so the node is asked; the sizes come
+# from the program's IDL.
+ACCOUNT_TYPES = {
+    "participant": "Prescriber",  # a Dispenser has the same size
+    "medication": "Medication",
+    "product": "Product",
+    "prescription": "Prescription",
+    "dispensation": "Dispensation",
+    "closure": "PrescriptionClosure",
 }
 FEE = 10_000  # lamports per transaction: two signatures (operator + participant)
 LAMPORTS_PER_SOL = 1_000_000_000
@@ -148,7 +149,11 @@ async def estimate(ledger, profile: str) -> tuple[Estimate, dict]:
     counts["closure"] = sum(
         1 for i in items if i.closure and not (i.key in done and done[i.key][1].status != "active")
     )
-    rent = {kind: await ledger.rent_exempt_minimum(size) for kind, size in ACCOUNT_BYTES.items()}
+    idl = Idl.load()
+    rent = {
+        kind: await ledger.rent_exempt_minimum(idl.account_size(account))
+        for kind, account in ACCOUNT_TYPES.items()
+    }
     return Estimate(counts, rent), done
 
 
