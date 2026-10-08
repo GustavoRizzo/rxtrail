@@ -433,9 +433,9 @@ def test_a_recall_freezes_the_prescription_for_every_pharmacy(client, cast, ledg
 
     assert ledger.catalog[medication_address(MEDICATION_ID)].status is CatalogStatus.WITHDRAWN
     assert "MedicationNotActive" in dispense(client, rx, 1).content.decode()
-    assert "Frozen" in client.get("/dispenser/", {"rx": rx}).content.decode()
+    assert "On hold" in client.get("/dispenser/", {"rx": rx}).content.decode()
     client.logout()
-    assert "Frozen · medication withdrawn" in client.get(f"/rx/{rx}/").content.decode()
+    assert "On hold · medication recalled" in client.get(f"/rx/{rx}/").content.decode()
 
 
 def test_a_product_recall_leaves_the_other_versions_dispensable(client, cast, ledger):
@@ -446,7 +446,7 @@ def test_a_product_recall_leaves_the_other_versions_dispensable(client, cast, le
     )
 
     assert "ProductNotActive" in dispense(client, rx, 1).content.decode()
-    assert "(withdrawn)" in client.get("/dispenser/", {"rx": rx}).content.decode()
+    assert "(recalled)" in client.get("/dispenser/", {"rx": rx}).content.decode()
     dispense(client, rx, 1, product=GENERIC_ID)
     assert ledger.prescriptions[bytes.fromhex(rx)].quantity_dispensed == 1
 
@@ -663,11 +663,11 @@ def test_only_the_issuing_prescriber_is_offered_to_close(client, cast):
 
     client.login(username="dr", password="pw")
     page = client.get(f"/rx/{rx}/").content.decode()
-    assert "Cancel prescription" in page and "Stop the remaining" not in page
+    assert "Cancel prescription" in page and "Discontinue the remaining" not in page
     client.logout()
     dispense(client, rx, 10)
     client.login(username="dr", password="pw")
-    assert "Stop the remaining 20" in client.get(f"/rx/{rx}/").content.decode()
+    assert "Discontinue the remaining 20" in client.get(f"/rx/{rx}/").content.decode()
 
 
 def test_cancelling_closes_the_prescription_everywhere(client, cast, ledger):
@@ -695,11 +695,11 @@ def test_stopping_voids_the_rest_and_keeps_the_dispensations(client, cast, ledge
 
     page = close(client, rx, "stop", reason="suspected_misuse").content.decode()
 
-    assert "Stopped on-chain" in page
+    assert "Discontinued on-chain" in page
     assert "20 units voided" in page and "Suspected misuse" in page
     assert "Dispensed 10" in page
     client.login(username="dr", password="pw")
-    assert "Stopped · 20 voided" in client.get("/prescriber/").content.decode()
+    assert "Discontinued · 20 voided" in client.get("/prescriber/").content.decode()
 
 
 def test_a_cancel_that_loses_the_race_is_refused_not_turned_into_a_stop(client, cast, ledger):
@@ -711,9 +711,9 @@ def test_a_cancel_that_loses_the_race_is_refused_not_turned_into_a_stop(client, 
 
     page = close(client, rx, "cancel").content.decode()
 
-    assert "A pharmacy dispensed in the meantime" in page
+    assert "A pharmacy filled it in the meantime" in page
     assert ledger.prescriptions[bytes.fromhex(rx)].status == "active"
-    assert "Stop the remaining 20" in page
+    assert "Discontinue the remaining 20" in page
 
 
 def test_another_prescriber_cannot_close(client, cast, ledger):

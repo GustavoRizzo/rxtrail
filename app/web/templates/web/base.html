@@ -36,7 +36,7 @@
           <a href="{% url 'web:home' %}" class="hidden items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 sm:flex">
             <i data-lucide="{{ role_icon }}" class="h-4 w-4 text-brand-primary"></i>
             <span class="font-medium text-slate-100">{{ user.participant.display_name }}</span>
-            <span class="text-slate-500">· {{ user.participant.get_role_display }}</span>
+            <span class="text-slate-500">· {{ user.participant.role|role_label }}</span>
           </a>
           <form method="post" action="{% url 'web:logout' %}">{% csrf_token %}
             <button class="flex items-center gap-1 rounded-full px-3 py-1.5 text-slate-400 transition hover:bg-white/5 hover:text-slate-100" title="Sign out">

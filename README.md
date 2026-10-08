@@ -19,14 +19,14 @@ longer matches what was handed out, an audit that takes weeks to piece
 together.
 
 RxTrail puts the rule itself on a shared ledger that no single party
-controls. A prescription is issued once; every dispensation is recorded
-against it; and the program **guarantees the total dispensed never exceeds
-the quantity granted** — even when two pharmacies try at the same time.
+controls. A prescription is issued once; every fill is recorded against
+it; and the program **guarantees the total dispensed never exceeds the
+quantity prescribed** — even when two pharmacies try at the same time.
 Every event stays on-chain as its own immutable record, so a regulator or
 auditor can verify the full history without trusting anyone.
 
 Every prescription names a medication from a shared catalog, and every
-dispensation records which manufacturer's product was handed out. That turns
+fill records which manufacturer's product was handed out. That turns
 the history into evidence about *professionals*, never patients: which
 prescribers push a new, pricier drug over an equivalent one, or which
 pharmacies avoid generics. And a recall reaches every pharmacy at once.
@@ -57,11 +57,11 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
 
 | Actor | Can |
 |---|---|
-| Professional authority (e.g. a medical council) | enable, suspend and reinstate prescribers |
-| Health authority (e.g. a health regulator) | enable, suspend and reinstate dispensers |
-| Catalog authority (e.g. a drug regulator) | register medications and products; withdraw (recall) and reinstate them |
-| Prescriber | issue a prescription for a catalog medication: quantity, expiry, document hash; optionally lock one product ("do not substitute"); cancel it before any dispensation, or stop what remains of a partly dispensed one |
-| Dispenser (pharmacy) | dispense against a prescription, never past what remains, recording the product handed out |
+| Medical board (licenses prescribers) | register, suspend and reinstate prescribers |
+| Pharmacy board (licenses pharmacies) | register, suspend and reinstate pharmacies |
+| Drug regulator | register medications and products; recall and reinstate them |
+| Prescriber | issue a prescription for a catalog medication: quantity, expiry, document hash; optionally lock one product ("do not substitute"); cancel it before the first fill, or discontinue what remains of a partly filled one |
+| Pharmacy | dispense against a prescription, in one fill or several, never past what remains, recording the product handed out |
 | Anyone | read and verify the full history; study behaviour patterns at `/insights/` |
 
 - **Non-custodial.** Every action is signed by the participant it is
@@ -78,19 +78,19 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
   each record keeps only an identity hash, so nobody can quietly change what
   an id means. The program refuses a product that is not a version of the
   prescribed medication.
-- **Recall takes effect everywhere at once.** A withdrawn product can no
-  longer be dispensed (pharmacies hand out another version); a withdrawn
-  medication cannot be prescribed, and all its prescriptions freeze until it
-  is reinstated.
+- **Recall takes effect everywhere at once.** A recalled product can no
+  longer be dispensed (pharmacies hand out another version); a recalled
+  medication cannot be prescribed, and all its prescriptions are on hold
+  until it is reinstated.
 - **Suspension takes effect everywhere at once.** A suspended prescriber can
   no longer issue, and none of their prescriptions can be dispensed — the
   answer to a leaked key or a revoked licence. Reinstating restores both;
   nothing already recorded changes.
-- **Cancel and stop, never edit.** The issuing prescriber may cancel a
-  prescription nobody dispensed yet, or stop what remains of a partly
-  dispensed one, with a public, non-clinical reason (a private note stays
-  off-chain). Both are final. If a pharmacy dispenses first, a cancel is
-  refused, never silently turned into a stop. A suspended prescriber cannot
+- **Cancel and discontinue, never edit.** The issuing prescriber may cancel
+  a prescription nobody filled yet, or discontinue what remains of a partly
+  filled one, with a public, non-clinical reason (a private note stays
+  off-chain). Both are final. If a pharmacy fills it first, a cancel is
+  refused, never silently turned into a discontinuation. A suspended prescriber cannot
   do either: whoever holds a leaked key must not void patients' prescriptions.
 - **Open auditing.** `/insights/` reads only public data (every program
   account, plus the open catalog) and looks for behaviour patterns: who gives
@@ -146,9 +146,9 @@ What goes where:
 | On-chain (public) | Off-chain |
 |---|---|
 | random prescription ids; nothing about the patient | private: patient name and document number |
-| the medication prescribed; quantity granted, dispensed, expiry | private: the full prescription document |
+| the medication prescribed; quantity prescribed, dispensed, expiry | private: the full prescription document |
 | salted hash of the document | private: the salt |
-| every dispensation and the product handed out, signed | |
+| every fill and the product handed out, signed | |
 | catalog records: id, identity hash, status | public open data: names, ATC class, kind, dosage guidance |
 
 ## 🚀 Quick start
@@ -214,7 +214,7 @@ or to resume after a failure — every one of them is safe to repeat:
 | 1 | `just build` | creates `envs/localnet.env` from the template (as your user), builds the Solana toolchain image, compiles the program with Anchor and copies its interface (IDL) to the app |
 | 2 | `just bootstrap localnet` | builds the app image, starts Postgres, the web app and a private Solana validator, applies the migrations |
 | 3 | `just deploy localnet` | creates a local deployer key, funds it from the local faucet and deploys the program |
-| 4 | `just rx localnet demo` | creates the operator and authority keys, initializes the program, then seeds the demo: participants enabled on-chain, a catalog, ~200 prescriptions |
+| 4 | `just rx localnet demo` | creates the operator and authority keys, initializes the program, then seeds the demo: participants registered on-chain, a catalog, ~200 prescriptions |
 
 > [!NOTE]
 > **About the program id.** A Solana program lives at an address set by its
@@ -235,17 +235,17 @@ accounts (one per role) and fills the form for you. A suggested tour:
 2. **Pharmacy** (e.g. Central Pharmacy) — look the id up, pick the product
    handed out and dispense part of it, then try to dispense more than
    remains: the chain refuses.
-3. **Professional authority** (Regional Medical Council) — suspend the
+3. **Medical board** (Regional Medical Council) — suspend the
    prescriber, then try dispensing again as the pharmacy: refused
    everywhere. Reinstate.
-4. **Catalog authority** (National Medication Registry) — withdraw a
-   product: the pharmacy must hand out another version. Withdraw the
-   medication: its prescriptions freeze for every pharmacy. Reinstate.
+4. **Drug regulator** (National Medication Registry) — recall a
+   product: the pharmacy must hand out another version. Recall the
+   medication: its prescriptions go on hold for every pharmacy. Reinstate.
 5. **Auditor** (Health Inspector) — open any prescription: the verdict, the
    medication and the on-chain history, without the patient's data. Every
    key and record links to the Solana explorer.
 6. **Prescriber again** — open a prescription you issued: cancel it if
-   nobody dispensed it, or stop what remains. The pharmacy is refused from
+   nobody filled it, or discontinue what remains. The pharmacy is refused from
    then on, and the public page shows who closed it, when and why.
 7. **Anyone, signed out** — open **Insights**: the case for open auditing,
    then the investigations below.
@@ -365,7 +365,7 @@ Three keys matter for running an environment:
 | `.keys/<network>/deployer.json` | publishes and upgrades the program | yes, to deploy |
 | `.keys/<network>/operator.json` | pays every fee and rent deposit | yes, while in use |
 
-Participants (authorities, prescribers, dispensers) sign but never pay.
+Participants (boards, regulators, prescribers, pharmacies) sign but never pay.
 
 ### Devnet (public demo)
 
@@ -408,16 +408,16 @@ because they are the audit trail.
 | deployer | first deploy | ~1.46 SOL locked in the program account (289 KB binary), plus a same-size temporary buffer refunded at the end: **~2.9 SOL needed at the moment of deploying** |
 | deployer | each upgrade | a temporary buffer again (~1.46 SOL, refunded), plus more rent only if the binary grows |
 | operator | `setup`, once | 0.00118 SOL (configuration record) |
-| operator | per prescriber or dispenser enabled | 0.00094 SOL |
+| operator | per prescriber or pharmacy registered | 0.00094 SOL |
 | operator | per medication / product in the catalog | 0.00110 / 0.00127 SOL |
 | operator | **per prescription** | **0.00166 SOL** |
-| operator | **per dispensation** | **0.00128 SOL** |
-| operator | per cancel or stop | 0.00111 SOL |
+| operator | **per fill** | **0.00128 SOL** |
+| operator | per cancellation or discontinuation | 0.00111 SOL |
 | operator | per transaction | 0.000005 SOL |
 
 Rent figures use devnet's rate (about 5,070 lamports per account byte, plus
 128 bytes of overhead per account). A prescription filled in three
-dispensations costs about **0.0055 SOL**,
+parts costs about **0.0055 SOL**,
 almost all of it rent that stays locked as the permanent record. The
 deployer pays once (and on upgrades); the operator pays as the system is
 used.
@@ -516,10 +516,10 @@ repeat, and the demo seed continues where it stopped.
 ## 🗺️ Roadmap
 
 - Devnet deployment
-- Corrections to a dispensation (reversal records)
+- Corrections to a fill (reversal records)
 - Insights over time: filters by period, and adoption curves after a
   medication's launch
-- A "reveal identity" action for the professional authority only, itself
+- A "reveal identity" action for the medical board only, itself
   recorded
 - Wallet sign-in (each participant signs in their own wallet)
 - An indexer of the program's events, so lists and dashboards stop reading

@@ -36,7 +36,7 @@
   {% if trail.frozen %}
     <div class="mt-6 flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-4">
       <i data-lucide="snowflake" class="mt-0.5 h-5 w-5 shrink-0 text-danger"></i>
-      <div><p class="font-semibold text-danger">Frozen · medication withdrawn</p><p class="text-xs text-slate-300">The catalog authority recalled this medication on {{ trail.medication.status_changed_at|date:"M j, Y H:i" }} UTC. No pharmacy can dispense against this prescription until it is reinstated. What was already dispensed stays on record.</p></div>
+      <div><p class="font-semibold text-danger">On hold · medication recalled</p><p class="text-xs text-slate-300">The drug regulator recalled this medication on {{ trail.medication.status_changed_at|date:"M j, Y H:i" }} UTC. No pharmacy can dispense against this prescription until it is reinstated. What was already dispensed stays on record.</p></div>
     </div>
   {% endif %}
 
@@ -44,7 +44,7 @@
     <div class="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
       <i data-lucide="{% if c.kind == 'cancelled' %}circle-x{% else %}circle-stop{% endif %}" class="mt-0.5 h-5 w-5 shrink-0 text-slate-300"></i>
       <div>
-        <p class="font-semibold text-slate-100">{% if c.kind == "cancelled" %}Cancelled by the prescriber{% else %}Stopped by the prescriber · {{ c.quantity_voided }} unit{{ c.quantity_voided|pluralize }} voided{% endif %}</p>
+        <p class="font-semibold text-slate-100">{% if c.kind == "cancelled" %}Cancelled by the prescriber{% else %}Discontinued by the prescriber · {{ c.quantity_voided }} unit{{ c.quantity_voided|pluralize }} voided{% endif %}</p>
         <p class="text-xs text-slate-400">{{ c.reason.label }} · {{ c.closed_at|date:"M j, Y H:i" }} UTC · signed by <span class="text-slate-300">{{ c.prescriber|who:names }}</span>. {% if c.kind == "cancelled" %}Nothing was ever dispensed; no pharmacy can dispense it now.{% else %}The {{ c.quantity_dispensed }} unit{{ c.quantity_dispensed|pluralize }} already dispensed stay on record; the rest can no longer be dispensed.{% endif %}</p>
         {% if closure_note %}<p class="mt-2 flex items-start gap-1.5 text-xs text-slate-400"><i data-lucide="eye-off" class="mt-0.5 h-3.5 w-3.5 shrink-0"></i> Your private note (off-chain): {{ closure_note }}</p>{% endif %}
       </div>
@@ -52,7 +52,7 @@
   {% endwith %}{% endif %}
 
   <div class="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-4">
-    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Granted</p><p class="mt-1 text-2xl font-bold text-white">{{ rx.quantity_granted }}</p></div>
+    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Prescribed</p><p class="mt-1 text-2xl font-bold text-white">{{ rx.quantity_granted }}</p></div>
     <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Dispensed</p><p class="mt-1 text-2xl font-bold text-white">{{ rx.quantity_dispensed }}</p></div>
     <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Remaining</p><p class="mt-1 text-2xl font-bold rx-gradient-text">{{ rx.remaining }}</p></div>
     <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Expires</p><p class="mt-1 text-lg font-semibold text-white">{{ rx.expires_at|date:"M j, Y" }}</p></div>
@@ -64,10 +64,10 @@
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:1" x-data="{ open: false, busy: false }">
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div class="min-w-0">
-      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{% if close_kind == 'cancel' %}circle-x{% else %}circle-stop{% endif %}" class="h-5 w-5 text-slate-300"></i> {% if close_kind == "cancel" %}Cancel this prescription{% else %}Stop what remains{% endif %}</h2>
+      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{% if close_kind == 'cancel' %}circle-x{% else %}circle-stop{% endif %}" class="h-5 w-5 text-slate-300"></i> {% if close_kind == "cancel" %}Cancel this prescription{% else %}Discontinue what remains{% endif %}</h2>
       <p class="mt-1 text-sm text-slate-400">{% if close_kind == "cancel" %}Nobody dispensed it yet: cancelling voids it entirely.{% else %}{{ rx.quantity_dispensed }} unit{{ rx.quantity_dispensed|pluralize }} already dispensed stay on record; the remaining {{ rx.remaining }} can no longer be dispensed.{% endif %} Final: to undo it, issue a new prescription.</p>
     </div>
-    <button type="button" @click="open = true" class="flex items-center gap-2 rounded-xl border border-danger/40 px-4 py-2 text-sm text-danger hover:bg-danger/10">{% if close_kind == "cancel" %}Cancel prescription{% else %}Stop the remaining {{ rx.remaining }}{% endif %}</button>
+    <button type="button" @click="open = true" class="flex items-center gap-2 rounded-xl border border-danger/40 px-4 py-2 text-sm text-danger hover:bg-danger/10">{% if close_kind == "cancel" %}Cancel prescription{% else %}Discontinue the remaining {{ rx.remaining }}{% endif %}</button>
   </div>
   {# Teleported: the card's backdrop-filter would trap a fixed overlay inside it. #}
   <template x-teleport="body">
@@ -77,7 +77,7 @@
       <form method="post" action="{% url 'web:close_prescription' prescription_id %}" @submit="busy = true" class="rx-card grid w-full max-w-lg gap-4 p-6">
         {% csrf_token %}
         <input type="hidden" name="kind" value="{{ close_kind }}">
-        <h3 class="text-lg font-semibold text-white">{% if close_kind == "cancel" %}Cancel this prescription?{% else %}Stop the remaining {{ rx.remaining }} unit{{ rx.remaining|pluralize }}?{% endif %}</h3>
+        <h3 class="text-lg font-semibold text-white">{% if close_kind == "cancel" %}Cancel this prescription?{% else %}Discontinue the remaining {{ rx.remaining }} unit{{ rx.remaining|pluralize }}?{% endif %}</h3>
         <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Reason
           <span class="relative mt-1.5 block">
             <select name="reason" required class="rx-input normal-case">
@@ -96,7 +96,7 @@
           <button type="button" @click="open = false" class="rounded-xl px-4 py-2 text-sm text-slate-300 hover:bg-white/5">Keep it</button>
           <button class="rx-button flex items-center gap-2 px-4 py-2 text-sm" :disabled="busy">
             <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
-            <span x-text="busy ? 'Waiting for the chain…' : 'Sign and {{ close_kind }}'">Sign and {{ close_kind }}</span>
+            <span x-text="busy ? 'Waiting for the chain…' : 'Sign and {% if close_kind == "cancel" %}cancel{% else %}discontinue{% endif %}'">Sign and {% if close_kind == "cancel" %}cancel{% else %}discontinue{% endif %}</span>
           </button>
         </div>
       </form>
@@ -152,7 +152,7 @@
       {% if trail.closure %}{% with c=trail.closure %}
         <li class="rx-reveal relative">
           <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-slate-500"><i data-lucide="{% if c.kind == 'cancelled' %}x{% else %}square{% endif %}" class="h-2.5 w-2.5 text-white"></i></span>
-          <p class="text-sm font-medium text-slate-100">{% if c.kind == "cancelled" %}Cancelled{% else %}Stopped · {{ c.quantity_voided }} voided{% endif %} <span class="font-normal text-slate-400">({{ c.reason.label|lower }})</span></p>
+          <p class="text-sm font-medium text-slate-100">{% if c.kind == "cancelled" %}Cancelled{% else %}Discontinued · {{ c.quantity_voided }} voided{% endif %} <span class="font-normal text-slate-400">({{ c.reason.label|lower }})</span></p>
           <p class="mt-0.5 text-xs text-slate-500">{{ c.closed_at|date:"M j, Y H:i" }} UTC · signed by
             <span class="text-slate-300">{{ c.prescriber|who:names }}</span>
             · <a target="_blank" href="{{ c.address|explorer }}" class="inline-flex items-center gap-1 hover:text-brand-accent">record <i data-lucide="external-link" class="h-3 w-3"></i></a></p>

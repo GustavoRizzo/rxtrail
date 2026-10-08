@@ -6,6 +6,15 @@ from rxtrail.domain import ClosureReason, Standing
 
 HEX_ID = RegexValidator(r"^[0-9a-f]{64}$", "Not a catalog id.")
 
+# A prescription's standing as prescribers say it ("stopped" is "discontinued").
+STANDING_LABELS = {
+    Standing.ACTIVE: "Active",
+    Standing.COMPLETED: "Completed",
+    Standing.EXPIRED: "Expired",
+    Standing.CANCELLED: "Cancelled",
+    Standing.STOPPED: "Discontinued",
+}
+
 
 def _hex_id(**kwargs) -> forms.CharField:
     return forms.CharField(max_length=64, validators=[HEX_ID], **kwargs)
@@ -31,7 +40,7 @@ class DispenseForm(forms.Form):
 class CloseForm(forms.Form):
     """Cancel (nothing dispensed yet) or stop (the rest of a partial one)."""
 
-    kind = forms.ChoiceField(choices=[("cancel", "Cancel"), ("stop", "Stop")])
+    kind = forms.ChoiceField(choices=[("cancel", "Cancel"), ("stop", "Discontinue")])
     reason = forms.ChoiceField(
         choices=[(r.value, r.label) for r in ClosureReason],
         error_messages={"required": "Choose a reason."},
@@ -82,7 +91,7 @@ class PrescriptionFilterForm(forms.Form):
 
     q = forms.CharField(max_length=200, required=False, label="Patient or medication")
     standing = forms.ChoiceField(
-        choices=[("", "Any status"), *((s.value, s.value.title()) for s in Standing)],
+        choices=[("", "Any status"), *((s.value, STANDING_LABELS[s]) for s in Standing)],
         required=False,
         label="Status",
     )

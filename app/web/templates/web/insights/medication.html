@@ -7,7 +7,7 @@
 
 <section class="rx-reveal mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4" style="--i:1">
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ p.prescriptions }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units granted / dispensed</p><p class="mt-1 text-2xl font-bold text-white">{{ p.units_granted }} <span class="text-slate-500">/</span> {{ p.units_dispensed }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units prescribed / dispensed</p><p class="mt-1 text-2xl font-bold text-white">{{ p.units_granted }} <span class="text-slate-500">/</span> {{ p.units_dispensed }}</p></div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Share of its class</p><p class="mt-1 text-3xl font-bold text-white">{{ p.class_share|pct }}</p>{% if m.atc_code %}<p class="text-xs text-slate-500">{% if in_a_class %}<a class="text-brand-secondary hover:underline" href="{% url 'web:insights_new_drugs' %}?class={{ m.atc_class }}&focus={{ m.address }}">{{ m.atc_class }} · {{ class_label }}</a>{% else %}{{ m.atc_class }} · {{ class_label }}{% endif %}</p>{% endif %}</div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Brand locked</p><p class="mt-1 text-3xl font-bold text-white">{{ p.locked }}</p><p class="text-xs text-slate-500">prescriptions</p></div>
 </section>

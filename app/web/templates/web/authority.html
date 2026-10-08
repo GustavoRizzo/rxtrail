@@ -3,14 +3,14 @@
 {% block title %}Authority{% endblock %}
 {% block content %}
 <div class="mb-8 rx-reveal">
-  <p class="text-sm text-slate-500">{{ user.participant.get_role_display }}</p>
+  <p class="text-sm text-slate-500">{{ user.participant.role|role_label }}</p>
   <h1 class="text-3xl font-bold text-white">{{ user.participant.display_name }}</h1>
-  <p class="mt-1 text-slate-400">You enable, suspend and reinstate {{ kind }}s. Suspension takes effect on-chain, everywhere, at once.</p>
+  <p class="mt-1 text-slate-400">You register, suspend and reinstate {{ labels }}. Suspension takes effect on-chain, everywhere, at once.</p>
 </div>
 
 <div class="grid gap-6 lg:grid-cols-[1fr_22rem]">
   <section class="rx-reveal">
-    <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white"><i data-lucide="badge-check" class="h-5 w-5 text-brand-accent"></i> Enabled {{ kind }}s</h2>
+    <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white"><i data-lucide="badge-check" class="h-5 w-5 text-brand-accent"></i> Registered {{ labels }}</h2>
     <div class="grid gap-3">
       {% for p, status in rows %}
         <div class="rx-card rx-reveal flex flex-wrap items-center gap-4 p-4" style="--i: {{ forloop.counter }}">
@@ -43,7 +43,7 @@
           {% endif %}
         </div>
       {% empty %}
-        <div class="rx-card p-8 text-center text-slate-500">No {{ kind }}s yet.</div>
+        <div class="rx-card p-8 text-center text-slate-500">No {{ labels }} yet.</div>
       {% endfor %}
     </div>
   </section>
@@ -51,7 +51,7 @@
   <div class="grid h-fit gap-6">
     <form method="post" action="{% url 'web:enable' %}" class="rx-card rx-reveal p-6" style="--i:1" x-data="{ busy: false }" @submit="busy = true">
       {% csrf_token %}
-      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="user-plus" class="h-5 w-5 text-brand-primary"></i> Enable a {{ kind }}</h2>
+      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="user-plus" class="h-5 w-5 text-brand-primary"></i> Register a {{ label }}</h2>
       <p class="mt-1 text-xs text-slate-500">Creates their login and key, and registers the key on-chain, signed by you.</p>
       <div class="mt-4 grid gap-3">
         {% include "web/_field.html" with label="Name" name="display_name" required=True %}
@@ -61,7 +61,7 @@
       </div>
       <button class="rx-button mt-5 flex w-full items-center justify-center gap-2 py-2.5" :disabled="busy">
         <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
-        <span x-text="busy ? 'Registering on-chain…' : 'Sign and enable'">Sign and enable</span>
+        <span x-text="busy ? 'Registering on-chain…' : 'Sign and register'">Sign and register</span>
       </button>
     </form>
     <div class="rx-reveal" style="--i:2">{% include "web/_activity.html" with title="Your actions" %}</div>

@@ -41,6 +41,7 @@ from rxtrail.domain import (
 )
 from web import catalog, qrcodes
 from web.chain import with_chain
+from web.context_processors import ROLE_LABELS
 from web.forms import (
     CloseForm,
     DispenseForm,
@@ -258,13 +259,13 @@ def close_prescription(request, prescription_id: str):
     except AlreadyDispensedError:
         messages.error(
             request,
-            "A pharmacy dispensed in the meantime, so it can no longer be cancelled. "
-            "Its dispensations are listed below; you can still stop what remains.",
+            "A pharmacy filled it in the meantime, so it can no longer be cancelled. "
+            "Its fills are listed below; you can still discontinue what remains.",
         )
     except RxTrailError as exc:
         _fail(request, exc)
     else:
-        past = "Cancelled" if data["kind"] == "cancel" else "Stopped"
+        past = "Cancelled" if data["kind"] == "cancel" else "Discontinued"
         _log(me, data["kind"], f"{past}: {reason.label}", prescription_id, receipt.signature)
         messages.success(request, f"{past} on-chain. No pharmacy can dispense it any more.")
     return redirect("web:prescription", prescription_id=prescription_id)
@@ -560,11 +561,14 @@ def authority(request):
     except RxTrailError as exc:
         _fail(request, exc)
         status = [None] * len(managed)
+    label = ROLE_LABELS[managed_role].lower()
     return render(
         request,
         "web/authority.html",
         {
             "kind": kind,
+            "label": label,
+            "labels": "pharmacies" if label == "pharmacy" else f"{label}s",
             "rows": list(zip(managed, status, strict=True)),
             "form": EnableParticipantForm(),
             "activities": me.activities.all()[:10],
@@ -606,9 +610,10 @@ def enable_participant(request):
             display_name=data["display_name"],
             license_number=data["license_number"],
         )
-    _log(me, "enable", f"Enabled {kind} {data['display_name']}", signature=receipt.signature)
+    label = ROLE_LABELS[managed_role].lower()
+    _log(me, "enable", f"Registered {label} {data['display_name']}", signature=receipt.signature)
     messages.success(
-        request, f"{data['display_name']} enabled on-chain. They can sign in as {name}."
+        request, f"{data['display_name']} registered on-chain. They can sign in as {name}."
     )
     return redirect("web:authority")
 

@@ -116,7 +116,7 @@ class RxTrail:
         return CatalogEntry(product_id, digest, receipt)
 
     async def withdraw_medication(self, authority: str, medication_id: bytes) -> Receipt:
-        """Recall: no new prescriptions, and every existing one is frozen."""
+        """Recall: no new prescriptions, and every existing one is on hold."""
         return await self._ledger.set_medication_status(
             authority, medication_id, CatalogStatus.WITHDRAWN
         )

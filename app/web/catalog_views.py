@@ -112,10 +112,10 @@ def set_catalog_status(request):
     except RxTrailError as exc:
         _fail(request, exc)
     else:
-        past = "withdrawn" if verb == "withdraw" else "reinstated"
+        past = "recalled" if verb == "withdraw" else "reinstated"
         _log(me, verb, f"{past.capitalize()} {name}", signature=receipt.signature)
         effect = {
-            ("medication", "withdraw"): "No new prescriptions; every existing one is frozen.",
+            ("medication", "withdraw"): "No new prescriptions; every existing one is on hold.",
             ("product", "withdraw"): "Pharmacies must hand out another version.",
         }.get((kind, verb), "Dispensable again.")
         messages.success(request, f"{name} {past}, on-chain, for every pharmacy. {effect}")

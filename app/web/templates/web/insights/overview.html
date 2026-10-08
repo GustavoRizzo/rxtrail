@@ -2,15 +2,15 @@
 {% load rxtrail %}
 {% block title %}Overview{% endblock %}
 {% block insights %}
-{% include "web/insights/_question.html" with kicker="The public record" question="The whole network in numbers" lede="Counts of prescriptions and dispensations, never of patients: the chain does not know who the patients are." %}
+{% include "web/insights/_question.html" with kicker="The public record" question="The whole network in numbers" lede="Counts of prescriptions and fills, never of patients: the chain does not know who the patients are." %}
 {% with o=overview %}
 <section class="rx-reveal grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescriptions }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Dispensations</p><p class="mt-1 text-3xl font-bold text-white">{{ o.dispensations }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Fills</p><p class="mt-1 text-3xl font-bold text-white">{{ o.dispensations }}</p></div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescribers</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescribers }}</p><p class="text-xs text-slate-500">median {{ o.per_prescriber_median|floatformat:"-1" }} rx · max {{ o.per_prescriber_max }}</p></div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Pharmacies</p><p class="mt-1 text-3xl font-bold text-white">{{ o.pharmacies }}</p></div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Units dispensed</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_dispensed }}</p><p class="text-xs text-slate-500">of {{ o.units_granted }} granted · {{ o.use_rate|pct }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units voided</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_voided }}</p><p class="text-xs text-slate-500">by cancel or stop</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units voided</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_voided }}</p><p class="text-xs text-slate-500">cancelled or discontinued</p></div>
 </section>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -18,7 +18,7 @@
     <h2 class="font-semibold text-white">By medication</h2>
     <div class="mt-4 overflow-x-auto">
       <table class="w-full min-w-[30rem] text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-2 font-medium">Medication</th><th class="pb-2 text-right font-medium">Rx</th><th class="pb-2 text-right font-medium">Granted</th><th class="pb-2 text-right font-medium">Dispensed</th><th class="w-1/4 pb-2 pl-4 font-medium">Used</th></tr></thead>
+        <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-2 font-medium">Medication</th><th class="pb-2 text-right font-medium">Rx</th><th class="pb-2 text-right font-medium">Prescribed</th><th class="pb-2 text-right font-medium">Dispensed</th><th class="w-1/4 pb-2 pl-4 font-medium">Used</th></tr></thead>
         <tbody class="divide-y divide-white/5">
           {% for m, n, granted, dispensed in o.by_medication %}
             <tr>

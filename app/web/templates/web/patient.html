@@ -48,7 +48,7 @@
       {% if document.instructions %}<p class="mt-1 italic">{{ document.instructions }}</p>{% endif %}
       <p class="mt-4 text-sm">
         {% if rx.prescribed_product %}
-          <span class="font-semibold">Do not substitute.</span> Only {% for p in accepted %}{{ p.record.brand_name }} ({{ p.record.manufacturer.name }}){% empty %}the brand chosen by the prescriber, now withdrawn{% endfor %}.
+          <span class="font-semibold">Do not substitute.</span> Only {% for p in accepted %}{{ p.record.brand_name }} ({{ p.record.manufacturer.name }}){% empty %}the brand chosen by the prescriber, now recalled{% endfor %}.
         {% else %}
           <span class="font-semibold">Substitution allowed.</span> Accepted:
           {% for p in accepted %}{{ p.record.brand_name }} ({{ p.record.manufacturer.name }}, {{ p.record.get_kind_display|lower }}){% if not forloop.last %}; {% endif %}{% empty %}no product of this medication is on the market right now{% endfor %}.
@@ -69,7 +69,7 @@
       {% elif standing == "cancelled" %}
         <p class="rx-stamp inset-x-0 top-2 text-lg">Cancelled</p>
       {% elif standing == "stopped" %}
-        <p class="rx-stamp inset-0 text-sm">Stopped<br><span class="text-[0.6rem] tracking-widest">by the prescriber</span></p>
+        <p class="rx-stamp inset-0 text-sm">Discontinued<br><span class="text-[0.6rem] tracking-widest">by the prescriber</span></p>
       {% elif standing == "expired" %}
         <p class="rx-stamp inset-x-0 top-2 text-lg">Expired</p>
       {% elif standing == "completed" %}
@@ -116,7 +116,7 @@
   <section class="mt-8 border-t border-ink/20 pt-5 font-sans text-xs leading-relaxed text-ink-muted">
     <h2 class="font-semibold uppercase tracking-[0.2em]">For the patient</h2>
     <ul class="mt-2 list-disc space-y-1 pl-4">
-      {% if trail.closure %}<li class="font-semibold text-stamp">Your prescriber {% if trail.closure.kind == "cancelled" %}cancelled this prescription{% else %}stopped this prescription: what was left can no longer be collected{% endif %}. Talk to them if you still need the medication.</li>{% endif %}
+      {% if trail.closure %}<li class="font-semibold text-stamp">Your prescriber {% if trail.closure.kind == "cancelled" %}cancelled this prescription{% else %}discontinued this prescription: what was left can no longer be collected{% endif %}. Talk to them if you still need the medication.</li>{% endif %}
       {% if trail.frozen %}<li class="font-semibold text-stamp">This medication was recalled by the health authorities. Pharmacies cannot hand it out for now: talk to your prescriber.</li>{% endif %}
       <li>Take this prescription, printed or on your phone, to any pharmacy that uses RxTrail, with an identity document. The pharmacy scans the code at the top.</li>
       <li>You may collect it in parts, at different pharmacies, until {{ rx.expires_at|date:"M j, Y" }}. Every pharmacy sees the same balance at once.</li>

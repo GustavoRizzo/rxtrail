@@ -6,7 +6,7 @@
   {% if status == "active" %}
     <input type="hidden" name="verb" value="withdraw">
     <button class="flex items-center gap-1.5 rounded-xl border border-danger/30 px-3 py-1.5 text-xs text-danger transition hover:bg-danger/10" :disabled="busy"
-            title="{% if kind == 'medication' %}Recall: no new prescriptions, and every existing one is frozen{% else %}Recall this product: pharmacies hand out another version{% endif %}"><i data-lucide="octagon-pause" class="h-3.5 w-3.5"></i> Withdraw</button>
+            title="{% if kind == 'medication' %}Recall: no new prescriptions, and every existing one is put on hold{% else %}Recall this product: pharmacies hand out another version{% endif %}"><i data-lucide="octagon-pause" class="h-3.5 w-3.5"></i> Recall</button>
   {% else %}
     <input type="hidden" name="verb" value="reinstate">
     <button class="flex items-center gap-1.5 rounded-xl border border-brand-accent/30 px-3 py-1.5 text-xs text-brand-accent transition hover:bg-brand-accent/10" :disabled="busy"><i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i> Reinstate</button>

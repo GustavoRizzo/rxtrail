@@ -39,13 +39,13 @@ def _check_catalog(medication: Medication | None, product: Product | None) -> No
     if medication is None:
         raise NotFoundError("no such medication in the catalog")
     if medication.status is not CatalogStatus.ACTIVE:
-        raise MedicationNotActiveError("the medication is withdrawn from the catalog")
+        raise MedicationNotActiveError("the medication was recalled")
     if product is None:
         return
     if product.medication != medication.address:
         raise ProductMedicationMismatchError("the product is not a version of this medication")
     if product.status is not CatalogStatus.ACTIVE:
-        raise ProductNotActiveError("the product is withdrawn from the catalog")
+        raise ProductNotActiveError("the product was recalled")
 
 
 def check_issue(
@@ -112,7 +112,7 @@ def check_close(
     if kind is ClosureKind.CANCELLED:
         if prescription.dispensation_count > 0:
             raise AlreadyDispensedError(
-                "already dispensed: it can no longer be cancelled, only stopped"
+                "already filled: it can no longer be cancelled, only discontinued"
             )
         return
     if prescription.dispensation_count == 0:

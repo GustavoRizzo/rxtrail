@@ -112,7 +112,7 @@ def _stories(data: insights.PublicData) -> list[Story]:
                     "From there, any prescription opens its public record and its accounts "
                     "on the explorer: the evidence an authority would ask for."
                 ),
-                Step("A signal for the medical council to look into, not a conclusion."),
+                Step("A signal for the medical board to look into, not a conclusion."),
             ],
             bool(pushing),
         )
@@ -156,7 +156,7 @@ def _stories(data: insights.PublicData) -> list[Story]:
                 ),
                 Step(
                     "Prices are not part of RxTrail: the number shows a behaviour. "
-                    "Whether it hurts patients is for the health agency to judge."
+                    "Whether it hurts patients is for the health regulators to judge."
                 ),
             ],
             bool(avoiding),

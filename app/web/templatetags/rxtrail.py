@@ -45,6 +45,14 @@ def role_icon(role: str) -> str:
 
 
 @register.filter
+def role_label(role: str) -> str:
+    """What a participant's role is called on the page."""
+    from web.context_processors import ROLE_LABELS
+
+    return ROLE_LABELS.get(role, role)
+
+
+@register.filter
 def who(address: str, names: dict) -> str:
     """The participant's name for an on-chain key, or the short key itself."""
     return (names or {}).get(str(address)) or short(address, 6)

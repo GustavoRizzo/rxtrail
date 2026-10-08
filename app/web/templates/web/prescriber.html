@@ -154,13 +154,13 @@
             {% if row.standing == "active" %}
               <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><i data-lucide="circle-dot" class="h-3 w-3"></i> {{ rx.remaining }} left</span>
             {% elif row.standing == "completed" %}
-              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Every unit granted was dispensed"><i data-lucide="check" class="h-3 w-3"></i> Completed</span>
+              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Every unit prescribed was dispensed"><i data-lucide="check" class="h-3 w-3"></i> Completed</span>
             {% elif row.standing == "expired" %}
               <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="The deadline passed with units left; they can no longer be dispensed"><i data-lucide="clock-alert" class="h-3 w-3"></i> Expired · {{ rx.remaining }} unused</span>
             {% elif row.standing == "cancelled" %}
-              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Cancelled by the prescriber before any dispensation"><i data-lucide="circle-x" class="h-3 w-3"></i> Cancelled</span>
+              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Cancelled by the prescriber before the first fill"><i data-lucide="circle-x" class="h-3 w-3"></i> Cancelled</span>
             {% elif row.standing == "stopped" %}
-              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Stopped by the prescriber: what remained can no longer be dispensed"><i data-lucide="circle-stop" class="h-3 w-3"></i> Stopped · {{ rx.remaining }} voided</span>
+              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Discontinued by the prescriber: what remained can no longer be dispensed"><i data-lucide="circle-stop" class="h-3 w-3"></i> Discontinued · {{ rx.remaining }} voided</span>
             {% else %}
               <span class="rounded-full bg-danger/10 px-3 py-1 text-xs text-danger">Not on this chain</span>
             {% endif %}
