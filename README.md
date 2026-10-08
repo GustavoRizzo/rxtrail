@@ -526,8 +526,9 @@ repeat, and the demo seed continues where it stopped.
   the chain on every page view
 - Upgrade authority under a multisig of authorities; verifiable builds
 
-## 👤 Team
+## 👥 Team
 
-Built by **Gustavo Rizzo S. M. de Albuquerque** —
-[GitHub](https://github.com/GustavoRizzo) ·
-[LinkedIn](https://www.linkedin.com/in/gustavo-albuquerque/).
+| Member | Links |
+|---|---|
+| **Gustavo Rizzo S. M. de Albuquerque** | [GitHub](https://github.com/GustavoRizzo) · [LinkedIn](https://www.linkedin.com/in/gustavo-albuquerque/) |
+| **Filipi Edgar Barbosa** | [LinkedIn](https://www.linkedin.com/in/filipi-edgar-barbosa/) |
