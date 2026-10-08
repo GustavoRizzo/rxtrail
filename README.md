@@ -9,11 +9,14 @@
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-6.1-0C4B33?logo=django&logoColor=white)
 
-Controlled medications can only be sold against a prescription that grants a
-maximum quantity. Today each pharmacy only knows what *it* dispensed: the same
-prescription can be filled at several pharmacies past its limit, records can
-be edited after the fact, and auditing means asking every pharmacy for its
-data.
+Controlled medications are sold against a prescription that caps the
+quantity. Keeping that cap is harder than it sounds: a prescription can be
+filled in parts, at different pharmacies, over weeks, and health departments
+struggle to follow every one of them from start to finish. Wherever records
+are scattered and depend on each party reporting them right, a gap in control
+can become real harm: a prescription filled past its limit, a record that no
+longer matches what was handed out, an audit that takes weeks to piece
+together.
 
 RxTrail puts the rule itself on a shared ledger that no single party
 controls. A prescription is issued once; every dispensation is recorded
