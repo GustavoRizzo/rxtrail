@@ -31,7 +31,7 @@
           <ul class="mt-4 grid gap-2 border-t border-white/5 pt-4">
             {% for p in card.products %}
               <li class="flex flex-wrap items-center gap-3 text-sm">
-                <i data-lucide="package" class="h-4 w-4 {% if p.available %}text-brand-primary{% else %}text-danger{% endif %}"></i>
+                <i data-lucide="{{ 'product'|icon }}" class="h-4 w-4 {% if p.available %}text-brand-primary{% else %}text-danger{% endif %}"></i>
                 <span class="min-w-0 flex-1"><span class="text-slate-200">{{ p.record.brand_name }}</span> <span class="text-slate-500">· {{ p.record.manufacturer.name }} · {{ p.record.get_kind_display|lower }}</span></span>
                 {% include "web/_catalog_status.html" with status=p.status %}
                 {% if p.status %}
@@ -53,7 +53,7 @@
   <div class="grid h-fit gap-6">
     <form method="post" action="{% url 'web:register_medication' %}" class="rx-card rx-reveal p-6" style="--i:1" x-data="{ busy: false }" @submit="busy = true">
       {% csrf_token %}
-      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="pill" class="h-5 w-5 text-brand-primary"></i> Register a medication</h2>
+      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'medication'|icon }}" class="h-5 w-5 text-brand-primary"></i> Register a medication</h2>
       <p class="mt-1 text-xs text-slate-500">Active ingredient, strength and form define it and can never change. Limits only warn prescribers.</p>
       <div class="mt-4 grid gap-3">
         {% include "web/_field.html" with label="Name" name="name" required=True placeholder="e.g. Clonazepam 2 mg tablet" %}

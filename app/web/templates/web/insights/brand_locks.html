@@ -5,7 +5,7 @@
 {% include "web/insights/_question.html" with kicker="Laboratory lobbying · same molecule, one brand" question="Who locks the brand?" lede="A prescriber may forbid substitution (“do not substitute”): only the brand they chose can be handed out. Doing it again and again, for one manufacturer, is a pattern worth a look." %}
 
 <section class="rx-card rx-reveal p-6">
-  <h2 class="font-semibold text-white">Share of prescriptions with a locked brand, where other versions existed</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'brand lock'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Share of prescriptions with a locked brand, where other versions existed</h2>
   {% with baseline=locks.prescribers.0.baseline %}
   <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400"><span class="flex items-center gap-1.5"><span class="inline-block h-3 w-0.5 bg-brand-secondary"></span> peers' median: <span class="font-semibold text-slate-200">{{ baseline|pct }}</span></span><span class="flex items-center gap-1.5"><span class="inline-block h-2 w-4 bg-brand-primary"></span> stands out</span></p>
   {% endwith %}
@@ -13,7 +13,7 @@
 </section>
 
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:1">
-  <h2 class="font-semibold text-white">Whose brands get locked</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'manufacturer'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Whose brands get locked</h2>
   <ul class="mt-4 space-y-2 text-sm">
     {% for maker, n in locks.by_manufacturer %}
       <li class="flex items-center justify-between rounded-xl bg-white/5 px-4 py-2.5"><a href="{% insights_link 'manufacturer' maker %}" class="text-slate-200 hover:text-brand-secondary">{{ maker }}</a><span class="text-slate-400">{{ n }} lock{{ n|pluralize }}</span></li>

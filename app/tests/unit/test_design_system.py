@@ -7,13 +7,17 @@ here instead of in someone's browser:
 - the browser is told the theme is dark or light (color-scheme), and the
   surfaces it paints itself are opaque: an open select menu cannot blend a
   translucent colour, and came out white under white text;
-- every form control in the templates uses the design system's styling.
+- every form control in the templates uses the design system's styling;
+- icons come from one vocabulary (web/icons.py): one icon per idea, every
+  role has one, and templates only ask for ideas that exist.
 """
 
 import re
 from pathlib import Path
 
 import pytest
+
+from web.icons import ICONS, ROLE_ICONS
 
 WEB = Path(__file__).resolve().parents[2] / "web"
 TOKENS = (WEB / "static/web/tokens.css").read_text()
@@ -143,3 +147,19 @@ def test_every_form_control_uses_the_design_system(template):
         if not UNSTYLED_TYPES.search(attrs) and "rx-input" not in attrs
     ]
     assert not unstyled, f"add class rx-input (or use _field.html): {unstyled}"
+
+
+def test_each_idea_has_its_own_icon():
+    assert len(set(ICONS.values())) == len(ICONS)
+
+
+def test_every_role_has_an_icon():
+    from records.models import Participant
+
+    assert set(ROLE_ICONS) == set(Participant.Role.values)
+
+
+@pytest.mark.parametrize("template", TEMPLATES, ids=lambda p: p.name)
+def test_templates_ask_only_for_icons_in_the_vocabulary(template):
+    asked = re.findall(r"""["']([\w ]+)["']\|icon\b""", template.read_text())
+    assert not set(asked) - set(ICONS)

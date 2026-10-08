@@ -1,7 +1,12 @@
-{% load rxtrail %}
+{% load rxtrail %}{# kind: prescriber | pharmacy | medication | manufacturer #}
 <header class="rx-card rx-reveal p-7">
-  <p class="text-xs uppercase tracking-wide text-slate-500">{{ kicker }}</p>
-  <h1 class="mt-1 text-2xl font-bold text-white">{{ title }}</h1>
+  <div class="flex items-center gap-4">
+    <span class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-brand-primary/15"><i data-lucide="{{ kind|icon }}" class="h-6 w-6 text-brand-accent"></i></span>
+    <div>
+      <p class="text-xs uppercase tracking-wide text-slate-500">{{ kicker }}</p>
+      <h1 class="mt-1 text-2xl font-bold text-white">{{ title }}</h1>
+    </div>
+  </div>
   {% if address %}
     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
       <code class="break-all font-mono">{{ address }}</code>
@@ -12,7 +17,7 @@
   {% if signals is not None %}
     <div class="mt-5">
       {% for s in signals %}
-        <p class="mt-2 flex items-center gap-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2.5 text-sm text-slate-100"><i data-lucide="flag" class="h-4 w-4 shrink-0 text-brand-primary"></i> Signal: {{ s }}.</p>
+        <p class="mt-2 flex items-center gap-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2.5 text-sm text-slate-100"><i data-lucide="{{ 'signal'|icon }}" class="h-4 w-4 shrink-0 text-brand-primary"></i> Signal: {{ s }}.</p>
       {% empty %}
         <p class="flex items-center gap-2 text-sm text-slate-400"><i data-lucide="circle-check" class="h-4 w-4 text-brand-accent"></i> Nothing stands out against peers.</p>
       {% endfor %}

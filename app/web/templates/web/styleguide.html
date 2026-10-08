@@ -119,9 +119,10 @@
 </section>
 
 <section class="rx-card mb-12 p-6">
-  <h2 class="mb-4 text-lg font-semibold text-white">Icons (Lucide)</h2>
+  <h2 class="text-lg font-semibold text-white">Icons (Lucide)</h2>
+  <p class="mb-4 mt-1 text-sm text-slate-400">One icon per idea, asked for by meaning: <code class="font-mono">{% templatetag openvariable %} "pharmacy"|icon {% templatetag closevariable %}</code>. The list lives in <code class="font-mono">web/icons.py</code>.</p>
   <div class="grid grid-cols-3 gap-4 text-xs text-slate-400 sm:grid-cols-6 lg:grid-cols-9">
-    {% for icon, meaning in icons %}
+    {% for meaning, icon in icons %}
       <div class="flex flex-col items-center gap-2 rounded-xl bg-white/5 p-3 text-center">
         <i data-lucide="{{ icon }}" class="h-5 w-5 text-brand-accent"></i><span>{{ meaning }}</span>
       </div>

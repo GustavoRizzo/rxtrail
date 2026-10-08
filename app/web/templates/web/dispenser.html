@@ -53,9 +53,9 @@
         <div class="rx-progress mt-5{% if frozen or found.status != 'active' %} is-muted{% endif %}"><span style="width: {% widthratio found.quantity_dispensed found.quantity_granted 100 %}%"></span></div>
 
         {% if frozen %}
-          <p class="mt-6 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-slate-200"><i data-lucide="snowflake" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-danger">On hold: medication recalled.</span> The drug regulator recalled {{ medication.record.name }}. No pharmacy can dispense it until it is reinstated.</span></p>
+          <p class="mt-6 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-slate-200"><i data-lucide="{{ 'recall'|icon }}" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-danger">On hold: medication recalled.</span> The drug regulator recalled {{ medication.record.name }}. No pharmacy can dispense it until it is reinstated.</span></p>
         {% elif found.status != "active" %}
-          <p class="mt-6 flex items-start gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="{% if found.status == 'cancelled' %}circle-x{% else %}circle-stop{% endif %}" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-slate-100">{% if found.status == "cancelled" %}Cancelled by the prescriber.{% else %}Discontinued by the prescriber.{% endif %}</span> Nothing more can be dispensed on this prescription.</span></p>
+          <p class="mt-6 flex items-start gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="{% if found.status == 'cancelled' %}{{ 'cancelled'|icon }}{% else %}{{ 'discontinued'|icon }}{% endif %}" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-slate-100">{% if found.status == "cancelled" %}Cancelled by the prescriber.{% else %}Discontinued by the prescriber.{% endif %}</span> Nothing more can be dispensed on this prescription.</span></p>
         {% elif found.remaining %}
           <form method="post" action="{% url 'web:dispense' %}" class="mt-6 grid gap-4" x-data="{ qty: Math.min(1, {{ found.remaining }}), busy: false }" @submit="busy = true">
             {% csrf_token %}
@@ -86,13 +86,13 @@
               </div>
             </label>
             <button class="rx-button flex flex-1 items-center justify-center gap-2 py-3" :disabled="busy">
-              <i data-lucide="hand-coins" class="h-4 w-4" x-show="!busy"></i>
+              <i data-lucide="{{ 'fill'|icon }}" class="h-4 w-4" x-show="!busy"></i>
               <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
               <span x-text="busy ? 'Waiting for the chain…' : 'Sign and dispense'">Sign and dispense</span>
             </button>
             </div>
           </form>
-          {% if found.prescribed_product %}<p class="mt-3 flex items-center gap-2 text-xs text-brand-secondary"><i data-lucide="lock-keyhole" class="h-3.5 w-3.5"></i> The prescriber locked one brand: substitution is not allowed.</p>{% endif %}
+          {% if found.prescribed_product %}<p class="mt-3 flex items-center gap-2 text-xs text-brand-secondary"><i data-lucide="{{ 'brand lock'|icon }}" class="h-3.5 w-3.5"></i> The prescriber locked one brand: substitution is not allowed.</p>{% endif %}
           <p class="mt-3 text-xs text-slate-500">Hand the medication over only after the confirmation appears. Asking for more than remains, or a product that is not this medication, is refused by the chain itself.</p>
         {% else %}
           <p class="mt-6 flex items-center gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="ban" class="h-4 w-4 text-danger"></i> Nothing left to dispense on this prescription.</p>
@@ -101,12 +101,35 @@
       </section>
     {% else %}
       <div class="rx-card rx-reveal p-12 text-center text-slate-500">
-        <i data-lucide="pill" class="mx-auto h-10 w-10"></i>
+        <i data-lucide="{{ 'medication'|icon }}" class="mx-auto h-10 w-10"></i>
         <p class="mt-3">Scan the QR code on the patient's copy, or type its id.</p>
       </div>
     {% endif %}
   </div>
-  <div class="rx-reveal" style="--i:2">{% include "web/_activity.html" with title="Your recent fills" %}</div>
+  <div class="rx-reveal grid content-start gap-6" style="--i:2">
+    {% if samples %}
+      <div class="rx-card p-6">
+        <h3 class="flex items-center gap-2 font-semibold text-slate-100"><i data-lucide="users" class="h-4 w-4 text-brand-secondary"></i> At the counter</h3>
+        <p class="mt-1 text-xs text-slate-500">Demo: patients waiting, as if they had shown their QR code.</p>
+        <ul class="mt-4 grid gap-2">
+          {% for kind, row in samples %}
+            <li>
+              <a href="?rx={{ row.record.prescription_id }}" class="block rounded-xl border p-3 hover:bg-white/5{% if row.record.prescription_id == prescription_id %} border-brand-primary/50 bg-brand-primary/10{% else %} border-white/10{% endif %}">
+                <span class="flex items-baseline justify-between gap-2">
+                  <span class="text-xs font-medium uppercase tracking-wide text-brand-secondary">{{ kind }}</span>
+                  <span class="text-xs text-slate-500">{{ row.rx.remaining }} of {{ row.rx.quantity_granted }} left</span>
+                </span>
+                <span class="mt-1 block text-sm text-slate-200">{{ row.record.patient.name }}</span>
+                <span class="block text-xs text-slate-500">{{ row.record.document.medication }}</span>
+                <span class="rx-progress mt-2 block{% if row.standing != 'active' %} is-muted{% endif %}"><span style="width: {% widthratio row.rx.quantity_dispensed row.rx.quantity_granted 100 %}%"></span></span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% include "web/_activity.html" with title="Your recent fills" %}
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>{% endblock %}

@@ -5,20 +5,20 @@
 {% include "web/insights/_question.html" with kicker="The public record" question="The whole network in numbers" lede="Counts of prescriptions and fills, never of patients: the chain does not know who the patients are." %}
 {% with o=overview %}
 <section class="rx-reveal grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescriptions }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Fills</p><p class="mt-1 text-3xl font-bold text-white">{{ o.dispensations }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescribers</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescribers }}</p><p class="text-xs text-slate-500">median {{ o.per_prescriber_median|floatformat:"-1" }} rx · max {{ o.per_prescriber_max }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Pharmacies</p><p class="mt-1 text-3xl font-bold text-white">{{ o.pharmacies }}</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescription'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescriptions }}</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'fill'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Fills</p><p class="mt-1 text-3xl font-bold text-white">{{ o.dispensations }}</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescriber'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Prescribers</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescribers }}</p><p class="text-xs text-slate-500">median {{ o.per_prescriber_median|floatformat:"-1" }} rx · max {{ o.per_prescriber_max }}</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Pharmacies</p><p class="mt-1 text-3xl font-bold text-white">{{ o.pharmacies }}</p></div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Units dispensed</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_dispensed }}</p><p class="text-xs text-slate-500">of {{ o.units_granted }} granted · {{ o.use_rate|pct }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units voided</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_voided }}</p><p class="text-xs text-slate-500">cancelled or discontinued</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'cancelled'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Units voided</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_voided }}</p><p class="text-xs text-slate-500">cancelled or discontinued</p></div>
 </section>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
   <section class="rx-card rx-reveal p-6" style="--i:1">
-    <h2 class="font-semibold text-white">By medication</h2>
+    <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'medication'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> By medication</h2>
     <div class="mt-4 overflow-x-auto">
       <table class="w-full min-w-[30rem] text-sm">
-        <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-2 font-medium">Medication</th><th class="pb-2 text-right font-medium">Rx</th><th class="pb-2 text-right font-medium">Prescribed</th><th class="pb-2 text-right font-medium">Dispensed</th><th class="w-1/4 pb-2 pl-4 font-medium">Used</th></tr></thead>
+        <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-2 font-medium"><span class="inline-flex items-center gap-1.5"><i data-lucide="{{ 'medication'|icon }}" class="h-3.5 w-3.5"></i> Medication</span></th><th class="pb-2 text-right font-medium">Rx</th><th class="pb-2 text-right font-medium">Prescribed</th><th class="pb-2 text-right font-medium">Dispensed</th><th class="w-1/4 pb-2 pl-4 font-medium">Used</th></tr></thead>
         <tbody class="divide-y divide-white/5">
           {% for m, n, granted, dispensed in o.by_medication %}
             <tr>
@@ -35,11 +35,11 @@
   </section>
   <div class="grid h-fit gap-6">
     <section class="rx-card rx-reveal p-6" style="--i:2">
-      <h2 class="font-semibold text-white">Where prescriptions stand</h2>
+      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'prescription'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Where prescriptions stand</h2>
       <ul class="mt-4 space-y-2 text-sm">{% for standing, n in o.standing_rows %}<li class="flex justify-between"><span class="text-slate-300">{{ standing|capfirst }}</span><span class="text-slate-400">{{ n }}</span></li>{% endfor %}</ul>
     </section>
     <section class="rx-card rx-reveal p-6" style="--i:3">
-      <h2 class="font-semibold text-white">Why prescribers closed them</h2>
+      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'cancelled'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Why prescribers closed them</h2>
       <p class="mt-1 text-xs text-slate-500">Public, non-clinical reasons.</p>
       <ul class="mt-4 space-y-2 text-sm">{% for reason, n in o.closure_rows %}<li class="flex justify-between"><span class="text-slate-300">{{ reason.label }}</span><span class="text-slate-400">{{ n }}</span></li>{% empty %}<li class="text-slate-500">None yet.</li>{% endfor %}</ul>
     </section>

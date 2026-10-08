@@ -41,11 +41,11 @@
     <a href="{% url 'web:insights_overview' %}" class="flex items-center gap-1 text-sm text-brand-secondary hover:underline">All the numbers <i data-lucide="arrow-right" class="h-4 w-4"></i></a>
   </div>
   <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.prescriptions }}</p></div>
-    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Fills</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.dispensations }}</p></div>
-    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Prescribers</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.prescribers }}</p></div>
-    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Pharmacies</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.pharmacies }}</p></div>
-    <div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-slate-500">Signals worth a look</p><p class="mt-1 text-3xl font-bold rx-gradient-text">{{ signals }}</p></div>
+    <div class="rounded-2xl bg-white/5 p-4"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescription'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.prescriptions }}</p></div>
+    <div class="rounded-2xl bg-white/5 p-4"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'fill'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Fills</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.dispensations }}</p></div>
+    <div class="rounded-2xl bg-white/5 p-4"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescriber'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Prescribers</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.prescribers }}</p></div>
+    <div class="rounded-2xl bg-white/5 p-4"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Pharmacies</p><p class="mt-1 text-3xl font-bold text-white">{{ overview.pharmacies }}</p></div>
+    <div class="rounded-2xl bg-white/5 p-4"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'signal'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Signals worth a look</p><p class="mt-1 text-3xl font-bold rx-gradient-text">{{ signals }}</p></div>
   </div>
 </section>
 

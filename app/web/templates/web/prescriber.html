@@ -24,7 +24,7 @@
         <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Medication</p>
         <input type="hidden" name="medication_id" :value="chosen ? chosen.id : ''">
         <button type="button" @click="openPicker()" class="rx-input mt-1.5 flex items-center gap-3 text-left" :class="!chosen && 'is-empty'">
-          <i data-lucide="pill" class="h-4 w-4 shrink-0 text-brand-primary"></i>
+          <i data-lucide="{{ 'medication'|icon }}" class="h-4 w-4 shrink-0 text-brand-primary"></i>
           <span class="min-w-0 flex-1">
             <span class="block truncate" x-text="chosen ? chosen.name : 'Choose from the catalog'">Choose from the catalog</span>
             <span class="block truncate text-xs text-slate-500" x-show="chosen" x-text="chosen && `${chosen.active_ingredient} · ${chosen.form}`"></span>
@@ -62,7 +62,7 @@
       </div>
     </div>
     <button class="rx-button mt-6 flex w-full items-center justify-center gap-2 py-3" :disabled="busy">
-      <i data-lucide="pen-line" class="h-4 w-4" x-show="!busy"></i>
+      <i data-lucide="{{ 'sign'|icon }}" class="h-4 w-4" x-show="!busy"></i>
       <i data-lucide="loader-circle" class="h-4 w-4 animate-spin" x-show="busy" x-cloak></i>
       <span x-text="busy ? 'Signing and sending…' : 'Sign and issue'">Sign and issue</span>
     </button>
@@ -158,9 +158,9 @@
             {% elif row.standing == "expired" %}
               <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="The deadline passed with units left; they can no longer be dispensed"><i data-lucide="clock-alert" class="h-3 w-3"></i> Expired · {{ rx.remaining }} unused</span>
             {% elif row.standing == "cancelled" %}
-              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Cancelled by the prescriber before the first fill"><i data-lucide="circle-x" class="h-3 w-3"></i> Cancelled</span>
+              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Cancelled by the prescriber before the first fill"><i data-lucide="{{ 'cancelled'|icon }}" class="h-3 w-3"></i> Cancelled</span>
             {% elif row.standing == "stopped" %}
-              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Discontinued by the prescriber: what remained can no longer be dispensed"><i data-lucide="circle-stop" class="h-3 w-3"></i> Discontinued · {{ rx.remaining }} voided</span>
+              <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400" title="Discontinued by the prescriber: what remained can no longer be dispensed"><i data-lucide="{{ 'discontinued'|icon }}" class="h-3 w-3"></i> Discontinued · {{ rx.remaining }} voided</span>
             {% else %}
               <span class="rounded-full bg-danger/10 px-3 py-1 text-xs text-danger">Not on this chain</span>
             {% endif %}
@@ -168,7 +168,7 @@
           {% if rx %}
             <div class="rx-progress mt-4{% if row.standing != 'active' %} is-muted{% endif %}"><span style="width: {% widthratio rx.quantity_dispensed rx.quantity_granted 100 %}%"></span></div>
             <p class="mt-3 flex flex-wrap justify-between gap-x-6 gap-y-1.5 text-xs text-slate-500">
-              <span class="flex items-center gap-1.5"><i data-lucide="pill" class="h-3.5 w-3.5"></i> {{ rx.quantity_dispensed }} of {{ rx.quantity_granted }} dispensed</span>
+              <span class="flex items-center gap-1.5"><i data-lucide="{{ 'fill'|icon }}" class="h-3.5 w-3.5"></i> {{ rx.quantity_dispensed }} of {{ rx.quantity_granted }} dispensed</span>
               <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="h-3.5 w-3.5"></i> Issued {{ rx.issued_at|date:"M j, Y" }}</span>
               <span class="flex items-center gap-1.5"><i data-lucide="calendar-clock" class="h-3.5 w-3.5"></i> {% if row.standing == "expired" %}Expired{% else %}Expires{% endif %} {{ rx.expires_at|date:"M j, Y" }}</span>
             </p>

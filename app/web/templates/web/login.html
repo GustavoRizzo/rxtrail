@@ -18,22 +18,31 @@
     </button>
   </form>
 
-  {% if demo_accounts %}
+  {% if demo_mode %}
   <section class="rx-reveal" style="--i:1">
     <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-400"><i data-lucide="users" class="h-4 w-4"></i> Demo accounts</h2>
-    <p class="mt-1 text-sm text-slate-500">Pick one to fill the form. Every demo password is <code class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-slate-300">{{ demo_password }}</code>.</p>
-    <div class="mt-4 grid gap-3 sm:grid-cols-2">
-      {% for p in demo_accounts %}
-        <button type="button" @click="username = '{{ p.user.username }}'; password = '{{ demo_password }}'"
-                class="rx-card rx-card-hover rx-reveal flex items-center gap-3 p-4 text-left" style="--i: {{ forloop.counter }}">
-          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5">
-            <i data-lucide="{{ p.role|role_icon }}" class="h-5 w-5 text-brand-accent"></i>
-          </span>
-          <span>
-            <span class="block font-medium text-slate-100">{{ p.display_name }}</span>
-            <span class="block text-xs text-slate-500">{{ p.role|role_label }} · {{ p.user.username }}</span>
-          </span>
-        </button>
+    <p class="mt-1 text-sm text-slate-500">Six kinds of participant, each with its own dashboard. Pick an account to fill the form; every demo password is <code class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-slate-300">{{ demo_password }}</code>.</p>
+    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+      {% for role, hint, accounts in demo_roles %}
+        <div class="rx-card rx-reveal flex flex-col p-5" style="--i: {{ forloop.counter }}">
+          <div class="flex items-center gap-3">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-primary/15">
+              <i data-lucide="{{ role|role_icon }}" class="h-5 w-5 text-brand-accent"></i>
+            </span>
+            <h3 class="text-lg font-semibold text-white">{{ role|role_label }}</h3>
+          </div>
+          <p class="mt-2 text-sm text-slate-400">{{ hint }}</p>
+          <div class="mt-4 grid gap-2">
+            {% for p in accounts %}
+              <button type="button" @click="username = '{{ p.user.username }}'; password = '{{ demo_password }}'"
+                      :class="username === '{{ p.user.username }}' ? 'border-brand-primary/50 bg-brand-primary/10' : 'border-white/10 hover:bg-white/5'"
+                      class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left">
+                <span class="text-sm font-medium text-slate-100">{{ p.display_name }}</span>
+                <span class="whitespace-nowrap font-mono text-xs text-slate-500">{{ p.user.username }}</span>
+              </button>
+            {% endfor %}
+          </div>
+        </div>
       {% empty %}
         <p class="text-sm text-slate-500">No demo data yet: run <code class="font-mono">just rx localnet demo</code>.</p>
       {% endfor %}

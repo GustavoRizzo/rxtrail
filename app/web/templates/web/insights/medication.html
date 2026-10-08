@@ -3,34 +3,34 @@
 {% block title %}{{ profile.medication.name }}{% endblock %}
 {% block insights %}
 {% with p=profile m=profile.medication %}
-{% include "web/insights/_entity_header.html" with kicker="Medication · open catalog" title=m.name signals=None %}
+{% include "web/insights/_entity_header.html" with kind="medication" kicker="Medication · open catalog" title=m.name signals=None %}
 
 <section class="rx-reveal mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4" style="--i:1">
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ p.prescriptions }}</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'prescription'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ p.prescriptions }}</p></div>
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Units prescribed / dispensed</p><p class="mt-1 text-2xl font-bold text-white">{{ p.units_granted }} <span class="text-slate-500">/</span> {{ p.units_dispensed }}</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Share of its class</p><p class="mt-1 text-3xl font-bold text-white">{{ p.class_share|pct }}</p>{% if m.atc_code %}<p class="text-xs text-slate-500">{% if in_a_class %}<a class="text-brand-secondary hover:underline" href="{% url 'web:insights_new_drugs' %}?class={{ m.atc_class }}&focus={{ m.address }}">{{ m.atc_class }} · {{ class_label }}</a>{% else %}{{ m.atc_class }} · {{ class_label }}{% endif %}</p>{% endif %}</div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Brand locked</p><p class="mt-1 text-3xl font-bold text-white">{{ p.locked }}</p><p class="text-xs text-slate-500">prescriptions</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'therapeutic class'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Share of its class</p><p class="mt-1 text-3xl font-bold text-white">{{ p.class_share|pct }}</p>{% if m.atc_code %}<p class="text-xs text-slate-500">{% if in_a_class %}<a class="text-brand-secondary hover:underline" href="{% url 'web:insights_new_drugs' %}?class={{ m.atc_class }}&focus={{ m.address }}">{{ m.atc_class }} · {{ class_label }}</a>{% else %}{{ m.atc_class }} · {{ class_label }}{% endif %}</p>{% endif %}</div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'brand lock'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Brand locked</p><p class="mt-1 text-3xl font-bold text-white">{{ p.locked }}</p><p class="text-xs text-slate-500">prescriptions</p></div>
 </section>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-2">
   <section class="rx-card rx-reveal p-6" style="--i:2">
-    <h2 class="font-semibold text-white">Who prescribes it</h2>
+    <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'prescriber'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Who prescribes it</h2>
     <p class="mt-1 text-xs text-slate-500">Prescriptions each; median {{ p.peers_median|floatformat:"-1" }}.</p>
     <ul class="mt-4 space-y-2 text-sm">
       {% for who, n, flagged in p.prescribers|slice:":15" %}
-        <li class="flex items-center justify-between"><a href="{% insights_link 'prescriber' who %}" class="flex items-center gap-2 font-mono text-xs {% if flagged %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if flagged %}<i data-lucide="flag" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}Prescriber {{ who|pseudonym }}</a><span class="{% if flagged %}font-semibold text-white{% else %}text-slate-400{% endif %}">{{ n }}</span></li>
+        <li class="flex items-center justify-between"><a href="{% insights_link 'prescriber' who %}" class="flex items-center gap-2 font-mono text-xs {% if flagged %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if flagged %}<i data-lucide="{{ 'signal'|icon }}" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}Prescriber {{ who|pseudonym }}</a><span class="{% if flagged %}font-semibold text-white{% else %}text-slate-400{% endif %}">{{ n }}</span></li>
       {% endfor %}
     </ul>
   </section>
 
   <section class="rx-card rx-reveal p-6" style="--i:3">
-    <h2 class="font-semibold text-white">Which versions were handed out</h2>
+    <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'product'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Which versions were handed out</h2>
     <ul class="mt-4 space-y-2 text-sm">
       {% for product, n, units in p.products %}
         <li class="flex items-center justify-between rounded-xl bg-white/5 px-4 py-2.5"><span><span class="text-slate-100">{{ product.brand }}</span> <a href="{% insights_link 'manufacturer' product.manufacturer %}" class="text-xs text-slate-400 hover:text-brand-secondary">{{ product.manufacturer }}</a> <span class="text-xs text-slate-500">· {{ product.kind }}</span></span><span class="text-slate-300">{{ units }} <span class="text-xs text-slate-500">units · {{ n }}×</span></span></li>
       {% endfor %}
     </ul>
-    <h3 class="mt-6 text-sm font-semibold text-white">At which pharmacies</h3>
+    <h3 class="mt-6 flex items-center gap-2 text-sm font-semibold text-white"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-3.5 w-3.5 shrink-0 text-brand-secondary"></i> At which pharmacies</h3>
     <ul class="mt-2 space-y-1 text-sm">
       {% for who, n, share in p.pharmacies %}<li class="flex justify-between"><a href="{% insights_link 'pharmacy' who %}" class="font-mono text-xs text-slate-300 hover:text-brand-secondary">Pharmacy {{ who|pseudonym }}</a><span class="text-slate-400">{{ share|pct }} · {{ n }}</span></li>{% empty %}<li class="text-slate-500">Not dispensed yet.</li>{% endfor %}
     </ul>

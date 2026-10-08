@@ -5,7 +5,7 @@
 {% with rx=trail.prescription %}
 <div class="rx-reveal mb-6 flex flex-wrap items-center gap-3">
   <a href="{% url 'web:home' %}" class="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-300"><i data-lucide="arrow-left" class="h-4 w-4"></i> Back</a>
-  {% if is_pharmacy %}<a href="{% url 'web:dispenser' %}?rx={{ prescription_id }}" class="rx-button ml-auto flex items-center gap-2 px-4 py-2 text-sm"><i data-lucide="hand-coins" class="h-4 w-4"></i> Dispense at the counter</a>{% endif %}
+  {% if is_pharmacy %}<a href="{% url 'web:dispenser' %}?rx={{ prescription_id }}" class="rx-button ml-auto flex items-center gap-2 px-4 py-2 text-sm"><i data-lucide="{{ 'fill'|icon }}" class="h-4 w-4"></i> Dispense at the counter</a>{% endif %}
 </div>
 
 <section class="rx-card rx-reveal p-7">
@@ -14,7 +14,7 @@
       <p class="text-xs uppercase tracking-wide text-slate-500">Prescription</p>
       <h1 class="mt-1 text-2xl font-bold text-white">{% if medication %}{{ medication.name }}{% elif record %}{{ record.document.medication }}{% else %}Controlled medication{% endif %}</h1>
       {% if medication %}<p class="mt-1 text-sm text-slate-400">{{ medication.active_ingredient }} · {{ medication.strength }} · {{ medication.form }}{% if medication.atc_code %} · ATC {{ medication.atc_code }}{% endif %}</p>{% endif %}
-      {% if locked %}<p class="mt-1 flex items-center gap-1.5 text-xs text-brand-secondary"><i data-lucide="lock-keyhole" class="h-3.5 w-3.5"></i> Brand locked by the prescriber: {{ locked.brand_name }} · {{ locked.manufacturer.name }}</p>{% endif %}
+      {% if locked %}<p class="mt-1 flex items-center gap-1.5 text-xs text-brand-secondary"><i data-lucide="{{ 'brand lock'|icon }}" class="h-3.5 w-3.5"></i> Brand locked by the prescriber: {{ locked.brand_name }} · {{ locked.manufacturer.name }}</p>{% endif %}
       <div class="mt-2 flex items-center gap-2">
         <code class="truncate font-mono text-xs text-slate-400">{{ prescription_id }}</code>
         <button onclick="rxCopy('{{ prescription_id }}', this)" class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-white/5"><i data-lucide="copy" class="h-3.5 w-3.5"></i><span data-label>Copy</span></button>
@@ -22,7 +22,7 @@
     </div>
     {% if trail.consistent %}
       <div class="flex items-center gap-3 rounded-2xl border border-brand-accent/30 bg-brand-accent/10 px-5 py-3">
-        <i data-lucide="shield-check" class="h-7 w-7 text-brand-accent"></i>
+        <i data-lucide="{{ 'verified'|icon }}" class="h-7 w-7 text-brand-accent"></i>
         <div><p class="font-semibold text-brand-accent">History verified</p><p class="text-xs text-slate-400">Rebuilt from the chain; every record adds up.</p></div>
       </div>
     {% else %}
@@ -35,14 +35,14 @@
 
   {% if trail.frozen %}
     <div class="mt-6 flex items-start gap-3 rounded-2xl border border-danger/30 bg-danger/10 px-5 py-4">
-      <i data-lucide="snowflake" class="mt-0.5 h-5 w-5 shrink-0 text-danger"></i>
+      <i data-lucide="{{ 'recall'|icon }}" class="mt-0.5 h-5 w-5 shrink-0 text-danger"></i>
       <div><p class="font-semibold text-danger">On hold · medication recalled</p><p class="text-xs text-slate-300">The drug regulator recalled this medication on {{ trail.medication.status_changed_at|date:"M j, Y H:i" }} UTC. No pharmacy can dispense against this prescription until it is reinstated. What was already dispensed stays on record.</p></div>
     </div>
   {% endif %}
 
   {% if trail.closure %}{% with c=trail.closure %}
     <div class="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-      <i data-lucide="{% if c.kind == 'cancelled' %}circle-x{% else %}circle-stop{% endif %}" class="mt-0.5 h-5 w-5 shrink-0 text-slate-300"></i>
+      <i data-lucide="{% if c.kind == 'cancelled' %}{{ 'cancelled'|icon }}{% else %}{{ 'discontinued'|icon }}{% endif %}" class="mt-0.5 h-5 w-5 shrink-0 text-slate-300"></i>
       <div>
         <p class="font-semibold text-slate-100">{% if c.kind == "cancelled" %}Cancelled by the prescriber{% else %}Discontinued by the prescriber · {{ c.quantity_voided }} unit{{ c.quantity_voided|pluralize }} voided{% endif %}</p>
         <p class="text-xs text-slate-400">{{ c.reason.label }} · {{ c.closed_at|date:"M j, Y H:i" }} UTC · signed by <span class="text-slate-300">{{ c.prescriber|who:names }}</span>. {% if c.kind == "cancelled" %}Nothing was ever dispensed; no pharmacy can dispense it now.{% else %}The {{ c.quantity_dispensed }} unit{{ c.quantity_dispensed|pluralize }} already dispensed stay on record; the rest can no longer be dispensed.{% endif %}</p>
@@ -64,7 +64,7 @@
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:1" x-data="{ open: false, busy: false }">
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div class="min-w-0">
-      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{% if close_kind == 'cancel' %}circle-x{% else %}circle-stop{% endif %}" class="h-5 w-5 text-slate-300"></i> {% if close_kind == "cancel" %}Cancel this prescription{% else %}Discontinue what remains{% endif %}</h2>
+      <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{% if close_kind == 'cancel' %}{{ 'cancelled'|icon }}{% else %}{{ 'discontinued'|icon }}{% endif %}" class="h-5 w-5 text-slate-300"></i> {% if close_kind == "cancel" %}Cancel this prescription{% else %}Discontinue what remains{% endif %}</h2>
       <p class="mt-1 text-sm text-slate-400">{% if close_kind == "cancel" %}Nobody dispensed it yet: cancelling voids it entirely.{% else %}{{ rx.quantity_dispensed }} unit{{ rx.quantity_dispensed|pluralize }} already dispensed stay on record; the remaining {{ rx.remaining }} can no longer be dispensed.{% endif %} Final: to undo it, issue a new prescription.</p>
     </div>
     <button type="button" @click="open = true" class="flex items-center gap-2 rounded-xl border border-danger/40 px-4 py-2 text-sm text-danger hover:bg-danger/10">{% if close_kind == "cancel" %}Cancel prescription{% else %}Discontinue the remaining {{ rx.remaining }}{% endif %}</button>
@@ -131,7 +131,7 @@
     <h2 class="mb-5 flex items-center gap-2 font-semibold text-white"><i data-lucide="git-commit-vertical" class="h-5 w-5 text-brand-secondary"></i> On-chain history</h2>
     <ol class="relative space-y-6 border-l border-white/10 pl-6">
       <li class="rx-reveal relative" style="--i:1">
-        <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-brand-primary"><i data-lucide="pen-line" class="h-2.5 w-2.5 text-white"></i></span>
+        <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-brand-primary"><i data-lucide="{{ 'sign'|icon }}" class="h-2.5 w-2.5 text-white"></i></span>
         <p class="text-sm font-medium text-slate-100">Issued for {{ rx.quantity_granted }} units</p>
         <p class="mt-0.5 text-xs text-slate-500">{{ rx.issued_at|date:"M j, Y H:i" }} UTC · signed by
           <span class="text-slate-300">{{ rx.prescriber|who:names }}</span>
@@ -139,7 +139,7 @@
       </li>
       {% for d in trail.dispensations %}
         <li class="rx-reveal relative" style="--i: {{ forloop.counter|add:1 }}">
-          <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-brand-accent"><i data-lucide="pill" class="h-2.5 w-2.5 text-surface"></i></span>
+          <span class="absolute -left-[32px] top-0.5 grid h-4 w-4 place-items-center rounded-full bg-brand-accent"><i data-lucide="{{ 'fill'|icon }}" class="h-2.5 w-2.5 text-surface"></i></span>
           <p class="text-sm font-medium text-slate-100">Dispensed {{ d.quantity }}{% with p=products|get_item:d.product %}{% if p %} × {{ p.brand_name }} <span class="font-normal text-slate-400">({{ p.manufacturer.name }}, {{ p.get_kind_display|lower }})</span>{% endif %}{% endwith %} · {{ d.remaining_after }} remaining</p>
           <p class="mt-0.5 text-xs text-slate-500">{{ d.dispensed_at|date:"M j, Y H:i" }} UTC · signed by
             <span class="text-slate-300">{{ d.dispenser|who:names }}</span>

@@ -18,7 +18,7 @@
 
 {% if share %}
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:1">
-  <h2 class="font-semibold text-white">{{ class_label }}: who gets the prescriptions</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'therapeutic class'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> {{ class_label }}: who gets the prescriptions</h2>
   <p class="mt-1 text-sm text-slate-400">{{ share.total }} prescription{{ share.total|pluralize }} in this class. Choose the medication to compare prescribers on; by default, one with no generic on the market (usually the newest and dearest).</p>
   <ul class="mt-5 space-y-3">
     {% for m, n in share.medications %}
@@ -33,7 +33,7 @@
 </section>
 
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:2">
-  <h2 class="font-semibold text-white">Share of {{ share.focus.name }} in each prescriber's {{ chosen }} prescriptions</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'prescriber'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Share of {{ share.focus.name }} in each prescriber's {{ chosen }} prescriptions</h2>
   {% with baseline=share.prescribers.0.baseline %}
   <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400"><span class="flex items-center gap-1.5"><span class="inline-block h-3 w-0.5 bg-brand-secondary"></span> peers' median: <span class="font-semibold text-slate-200">{{ baseline|pct }}</span></span><span class="flex items-center gap-1.5"><span class="inline-block h-2 w-4 bg-brand-primary"></span> stands out</span></p>
   {% endwith %}

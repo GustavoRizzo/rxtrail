@@ -6,11 +6,11 @@
 
 <section class="rx-reveal grid gap-4 sm:grid-cols-2">
   <div class="rx-card p-5"><p class="text-xs text-slate-500">Network's generic rate</p><p class="mt-1 text-4xl font-bold rx-gradient-text">{{ rates.network|pct }}</p><p class="mt-1 text-xs text-slate-500">pooled over every pharmacy</p></div>
-  <div class="rx-card p-5"><p class="text-xs text-slate-500">Fills where a generic could be chosen</p><p class="mt-1 text-4xl font-bold text-white">{{ rates.sample }}</p><p class="mt-1 text-xs text-slate-500">no brand locked, a generic and another version on the market</p></div>
+  <div class="rx-card p-5"><p class="flex items-center gap-1.5 text-xs text-slate-500"><i data-lucide="{{ 'fill'|icon }}" class="h-3.5 w-3.5 shrink-0"></i> Fills where a generic could be chosen</p><p class="mt-1 text-4xl font-bold text-white">{{ rates.sample }}</p><p class="mt-1 text-xs text-slate-500">no brand locked, a generic and another version on the market</p></div>
 </section>
 
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:1">
-  <h2 class="font-semibold text-white">Generic share, pharmacy by pharmacy</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Generic share, pharmacy by pharmacy</h2>
   <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400"><span class="flex items-center gap-1.5"><span class="inline-block h-3 w-0.5 bg-brand-secondary"></span> network: <span class="font-semibold text-slate-200">{{ rates.network|pct }}</span></span><span class="flex items-center gap-1.5"><span class="inline-block h-2 w-4 bg-brand-primary"></span> stands out</span></p>
   {% include "web/insights/_comparison_table.html" with rows=rates.pharmacies kind="pharmacy" sample_label="could choose" %}
 </section>

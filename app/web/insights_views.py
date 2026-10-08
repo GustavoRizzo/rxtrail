@@ -15,6 +15,7 @@ from django.urls import reverse
 
 from rxtrail import insights
 from rxtrail.domain import RxTrailError
+from web.icons import ICONS
 from web.insights import public_data
 
 
@@ -30,8 +31,8 @@ def _data(request):
 TABS = [
     ("web:insights_overview", "Overview", "layout-dashboard", "The whole network in numbers"),
     ("web:insights_new_drugs", "New drugs", "flask-conical", "Who is pushing the new drug?"),
-    ("web:insights_generics", "Generics", "store", "Which pharmacies avoid generics?"),
-    ("web:insights_brand_locks", "Brand locks", "lock-keyhole", "Who locks the brand?"),
+    ("web:insights_generics", "Generics", ICONS["pharmacy"], "Which pharmacies avoid generics?"),
+    ("web:insights_brand_locks", "Brand locks", ICONS["brand lock"], "Who locks the brand?"),
     ("web:insights_volume", "Volume", "scale", "Who writes far more than their peers?"),
 ]
 
@@ -126,7 +127,7 @@ def _stories(data: insights.PublicData) -> list[Story]:
             "The pharmacy without generics",
             "A pharmacy always hands out the brand, never the cheaper generic, even when "
             "the prescription allows either. Which one?",
-            "store",
+            ICONS["pharmacy"],
             [
                 Step(
                     "Compare each pharmacy's share of generics with the network's, only "
@@ -171,7 +172,7 @@ def _stories(data: insights.PublicData) -> list[Story]:
             "Always the same brand",
             "A prescriber forbids substitution again and again, always for one "
             "manufacturer's brand. Coincidence?",
-            "lock-keyhole",
+            ICONS["brand lock"],
             [
                 Step(
                     "See how often each prescriber locks the brand, where a cheaper "

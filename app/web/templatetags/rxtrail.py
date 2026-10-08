@@ -39,9 +39,18 @@ def get_item(mapping: dict, key: str):
 @register.filter
 def role_icon(role: str) -> str:
     """The Lucide icon that stands for a participant's role."""
-    from web.context_processors import ROLE_ICONS
+    from web.icons import ROLE_ICONS
 
     return ROLE_ICONS.get(role, "user")
+
+
+@register.filter
+def icon(meaning: str) -> str:
+    """The Lucide icon for an idea in the icon vocabulary (web/icons.py).
+    An unknown meaning fails loudly: the vocabulary is the only source."""
+    from web.icons import ICONS
+
+    return ICONS[meaning]
 
 
 @register.filter

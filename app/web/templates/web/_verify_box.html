@@ -1,6 +1,7 @@
+{% load rxtrail %}
 <form action="{% url 'web:verify' %}" class="rx-card flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
   <div class="flex items-center gap-3 sm:w-64">
-    <span class="grid h-10 w-10 place-items-center rounded-xl bg-brand-primary/15"><i data-lucide="scan-search" class="h-5 w-5 text-brand-primary"></i></span>
+    <span class="grid h-10 w-10 place-items-center rounded-xl bg-brand-primary/15"><i data-lucide="{{ 'verify'|icon }}" class="h-5 w-5 text-brand-primary"></i></span>
     <div>
       <p class="font-semibold text-slate-100">Verify a prescription</p>
       <p class="text-xs text-slate-500">Anyone can check it against the chain.</p>

@@ -130,6 +130,14 @@ def test_the_landing_and_login_pages_render(client, cast):
     assert "Demo accounts" in login and "Dr" in login
 
 
+def test_the_login_page_groups_the_demo_accounts_by_role(client, cast):
+    login = client.get("/login/").content.decode()
+    groups = ["Prescriber", "Pharmacy", "Medical board", "Drug regulator", "Auditor"]
+    assert card_order(login, *reversed(groups)) == groups
+    assert "Scan a patient&#x27;s prescription" in login
+    assert "Pharmacy board" not in login  # no account of that role: no empty group
+
+
 @pytest.mark.parametrize(
     ("user", "dashboard"),
     [
@@ -223,6 +231,34 @@ def test_the_prescriber_searches_filters_and_sorts(client, cast, ledger):
 
     page = client.get("/prescriber/", {"issued_to": "2000-01-01"}).content.decode()
     assert "No prescriptions match these filters" in page
+
+
+def test_in_demo_mode_the_counter_offers_one_prescription_of_each_kind(
+    client, cast, ledger, settings
+):
+    ids = issue_many(
+        client,
+        ("Old Untouched", "Clonazepam", 30),
+        ("Ana Costa", "Clonazepam", 10),
+        ("Maria Silva", "Clonazepam", 30),
+        ("João Pereira", "Clonazepam", 30),
+    )
+    for patient, dispensed in [("Ana Costa", 10), ("Maria Silva", 20)]:
+        rx = bytes.fromhex(ids[patient])
+        ledger.prescriptions[rx] = replace(ledger.prescriptions[rx], quantity_dispensed=dispensed)
+    client.login(username="pharmacy", password="pw")
+
+    page = client.get("/dispenser/").content.decode()
+    assert "At the counter" in page and "Old Untouched" not in page  # the newest of each kind
+    assert card_order(page, "Ana Costa", "Maria Silva", "João Pereira") == [
+        "João Pereira",
+        "Maria Silva",
+        "Ana Costa",
+    ]
+    assert f"?rx={ids['Maria Silva']}" in page
+
+    settings.RXTRAIL_DEMO_MODE = False
+    assert "At the counter" not in client.get("/dispenser/").content.decode()
 
 
 def test_a_prescription_card_shows_its_dates_not_its_id(client, cast):

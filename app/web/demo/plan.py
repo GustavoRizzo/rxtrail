@@ -135,8 +135,11 @@ PROFILES = {
     ),
 }
 
-# The four samples the demo always had: what the login accounts see first.
+# What the login accounts see first: each prescriber has one prescription
+# not filled yet, one partly filled and one filled in full. Listed in the
+# order the pages show them (newest first): the seed issues these last.
 SHOWCASE = [
+    Planned("987.654.321-00", "João Pereira", "dr-ana", METHYLPHENIDATE, 60),
     Planned(
         "123.456.789-00",
         "Maria Silva",
@@ -145,7 +148,24 @@ SHOWCASE = [
         30,
         dispensations=(("pharmacy-one", "Clonazepam Beta 2 mg", 20),),
     ),
-    Planned("987.654.321-00", "João Pereira", "dr-ana", METHYLPHENIDATE, 60),
+    Planned(
+        "111.222.333-44",
+        "Lucas Ferreira",
+        "dr-ana",
+        ZOLPIDEM,
+        15,
+        dispensations=(("pharmacy-two", "Zolpidem Beta 10 mg", 15),),
+    ),
+    Planned("666.777.888-99", "Beatriz Rocha", "dr-bruno", CITALOPRAM, 30),
+    Planned(
+        "222.333.444-55",
+        "Pedro Alves",
+        "dr-bruno",
+        ZOLPIDEM,
+        30,
+        locked="Dormirex 10 mg",
+        dispensations=(("pharmacy-two", "Dormirex 10 mg", 10),),
+    ),
     Planned(
         "555.444.333-22",
         "Carla Mendes",
@@ -156,15 +176,6 @@ SHOWCASE = [
             ("pharmacy-one", "Serenix 0.5 mg", 10),
             ("pharmacy-one", "Alprazolam Beta 0.5 mg", 10),
         ),
-    ),
-    Planned(
-        "222.333.444-55",
-        "Pedro Alves",
-        "dr-bruno",
-        ZOLPIDEM,
-        30,
-        locked="Dormirex 10 mg",
-        dispensations=(("pharmacy-one", "Dormirex 10 mg", 10),),
     ),
 ]
 

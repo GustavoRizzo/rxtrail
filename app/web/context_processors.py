@@ -1,13 +1,6 @@
 from django.conf import settings
 
-ROLE_ICONS = {
-    "prescriber": "stethoscope",
-    "dispenser": "pill",
-    "professional_authority": "landmark",
-    "health_authority": "building-2",
-    "catalog_authority": "library-big",
-    "auditor": "search-check",
-}
+from web.icons import ROLE_ICONS
 
 # What each role is called in front of people: the words pharmacies and
 # regulators use, not the model's generic names.

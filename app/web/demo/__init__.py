@@ -24,7 +24,7 @@ from records.models import CatalogMedication, CatalogProduct, Participant, Presc
 from rxtrail.domain import PrescriptionDocument, ProductDetails, RxTrailError
 from web.demo.cast import CAST, NETWORK_PHARMACIES, Role, prescriber_name
 from web.demo.catalog import CATALOG
-from web.demo.plan import PROFILES, Planned, pharmacies, plan, prescribers
+from web.demo.plan import PROFILES, SHOWCASE, Planned, pharmacies, plan, prescribers
 
 # Every account locks a rent deposit, never returned: audit records are never
 # closed. The rate differs per network, so the node is asked. Sizes are
@@ -211,7 +211,12 @@ async def seed(log, profile: str = "story", estimate_only: bool = False, confirm
             if progress["done"] % 25 == 0 or progress["done"] == len(items):
                 log(f"  {progress['done']}/{len(items)} prescriptions in place")
 
-        await asyncio.gather(*(one(item) for item in items))
+        showcase = {item.key for item in SHOWCASE}
+        await asyncio.gather(*(one(item) for item in items if item.key not in showcase))
+        # The lists show the newest first: the samples go last, one at a
+        # time, so they open the login accounts' pages in SHOWCASE's order.
+        for item in reversed([item for item in items if item.key in showcase]):
+            await one(item)
     return cost
 
 

@@ -49,6 +49,7 @@ from web.forms import (
     IssueForm,
     PrescriptionFilterForm,
 )
+from web.icons import ICONS
 
 Role = Participant.Role
 
@@ -109,22 +110,30 @@ def landing(request):
     return render(request, "web/landing.html")
 
 
+# Demo mode: the login page groups the accounts by role, each with what a
+# visitor can try there.
+DEMO_ROLES = {
+    Role.PRESCRIBER: "Issue a prescription, follow its fills, cancel or discontinue it.",
+    Role.DISPENSER: "Scan a patient's prescription and dispense part or all of it.",
+    Role.PROFESSIONAL_AUTHORITY: "Register, suspend and reinstate prescribers.",
+    Role.HEALTH_AUTHORITY: "Register, suspend and reinstate pharmacies.",
+    Role.CATALOG_AUTHORITY: "Add medications and brands; recall one and see the counters stop.",
+    Role.AUDITOR: "Read every prescription with its on-chain trail.",
+}
+
+
 class LoginView(auth_views.LoginView):
     template_name = "web/login.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if settings.RXTRAIL_DEMO_MODE:
-            order = [
-                Role.PRESCRIBER,
-                Role.DISPENSER,
-                Role.PROFESSIONAL_AUTHORITY,
-                Role.HEALTH_AUTHORITY,
-                Role.CATALOG_AUTHORITY,
-                Role.AUDITOR,
-            ]
             accounts = Participant.objects.select_related("user").order_by("display_name")
-            context["demo_accounts"] = sorted(accounts, key=lambda p: order.index(p.role))
+            context["demo_roles"] = [
+                (role, hint, mine)
+                for role, hint in DEMO_ROLES.items()
+                if (mine := [p for p in accounts if p.role == role])
+            ]
             context["demo_password"] = settings.RXTRAIL_DEMO_PASSWORD
         return context
 
@@ -511,8 +520,48 @@ def dispenser(request):
             "record": record,
             "names": _names() if found else {},
             "activities": me.activities.all()[:10],
+            "samples": _counter_samples() if settings.RXTRAIL_DEMO_MODE else [],
         },
     )
+
+
+# Demo mode: the counter offers the newest prescription not filled yet, the
+# newest partly filled and the newest filled in full, so a visitor can look
+# each one up without a patient's QR code. A real pharmacy never lists them.
+COUNTER_SAMPLES_SCANNED = 30
+
+
+def _counter_samples() -> list[tuple[str, _Row]]:
+    records = list(
+        PrescriptionRecord.objects.select_related("patient").order_by("-created_at")[
+            :COUNTER_SAMPLES_SCANNED
+        ]
+    )
+    if not records:
+        return []
+    try:
+        on_chain = with_chain(
+            lambda _app, ledger: ledger.prescriptions_by_id(
+                [bytes.fromhex(r.prescription_id) for r in records]
+            )
+        )
+    except RxTrailError:
+        return []  # only a shortcut: the counter works without it
+    now = datetime.now(UTC)
+    found: dict[str, _Row] = {}
+    for record, rx in zip(records, on_chain, strict=True):
+        if rx is None:
+            continue
+        standing = rx.standing(now)
+        if standing is Standing.COMPLETED:
+            kind = "Filled in full"
+        elif standing is not Standing.ACTIVE:
+            continue
+        else:
+            kind = "Partly filled" if rx.quantity_dispensed else "Not filled yet"
+        found.setdefault(kind, _Row(record, rx, standing))
+    order = ["Not filled yet", "Partly filled", "Filled in full"]
+    return [(kind, found[kind]) for kind in order if kind in found]
 
 
 @require_POST
@@ -671,21 +720,9 @@ STYLE_TOKENS = [
     ("placeholder", "", "hint text in empty fields"),
 ]
 
-STYLE_ICONS = [
-    ("stethoscope", "prescriber"),
-    ("pill", "pharmacy"),
-    ("landmark", "professional authority"),
-    ("building-2", "health authority"),
-    ("search-check", "auditor"),
-    ("shield-check", "verified"),
-    ("scan-search", "verify"),
-    ("pen-line", "sign"),
-    ("activity", "activity"),
-]
-
 
 def styleguide(request):
     """Every token and component on one page. Development only."""
     if not settings.DEBUG:
         raise Http404
-    return render(request, "web/styleguide.html", {"tokens": STYLE_TOKENS, "icons": STYLE_ICONS})
+    return render(request, "web/styleguide.html", {"tokens": STYLE_TOKENS, "icons": ICONS.items()})

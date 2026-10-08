@@ -5,15 +5,15 @@
 {% include "web/insights/_question.html" with kicker="Volume · with its context" question="Who writes far more than their peers?" lede="Prescriptions per prescriber and medication, against the median of everyone who prescribes it. Volume alone means little: the columns beside it give the context an investigator would ask for first." %}
 
 <section class="rx-card rx-reveal p-6">
-  <h2 class="font-semibold text-white">Prescriber × medication</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'prescriber'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Prescriber × medication</h2>
   <p class="mt-1 text-sm text-slate-400">Stands out at {{ min_sample }}+ prescriptions and 3× the median. <span class="text-slate-300">Above limit</span>: quantities over the per-prescription limit (warned at issue, never blocked). <span class="text-slate-300">One pharmacy</span>: share dispensed by a single pharmacy.</p>
   <div class="mt-5 overflow-x-auto">
     <table class="w-full min-w-[44rem] text-sm">
-      <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-3 font-medium">Prescriber</th><th class="pb-3 font-medium">Medication</th><th class="pb-3 text-right font-medium">Rx</th><th class="pb-3 text-right font-medium">Peers' median</th><th class="pb-3 text-right font-medium">Units</th><th class="pb-3 text-right font-medium">Above limit</th><th class="pb-3 text-right font-medium">One pharmacy</th></tr></thead>
+      <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-3 font-medium"><span class="inline-flex items-center gap-1.5"><i data-lucide="{{ 'prescriber'|icon }}" class="h-3.5 w-3.5"></i> Prescriber</span></th><th class="pb-3 font-medium"><span class="inline-flex items-center gap-1.5"><i data-lucide="{{ 'medication'|icon }}" class="h-3.5 w-3.5"></i> Medication</span></th><th class="pb-3 text-right font-medium">Rx</th><th class="pb-3 text-right font-medium">Peers' median</th><th class="pb-3 text-right font-medium">Units</th><th class="pb-3 text-right font-medium">Above limit</th><th class="pb-3 text-right font-medium">One pharmacy</th></tr></thead>
       <tbody class="divide-y divide-white/5">
         {% for r in rows|slice:":40" %}
           <tr>
-            <td class="py-3 pr-4"><a href="{% insights_link 'prescriber' r.prescriber %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="flag" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}{{ r.prescriber|pseudonym }}</a></td>
+            <td class="py-3 pr-4"><a href="{% insights_link 'prescriber' r.prescriber %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="{{ 'signal'|icon }}" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}{{ r.prescriber|pseudonym }}</a></td>
             <td class="py-3 pr-4"><a href="{% insights_link 'medication' r.medication.address %}" class="text-slate-300 hover:text-brand-secondary">{{ r.medication.name }}</a></td>
             <td class="py-3 text-right font-semibold {% if r.stands_out %}text-white{% endif %}">{{ r.prescriptions }}</td>
             <td class="py-3 text-right text-slate-400">{{ r.peers_median|floatformat:"-1" }}</td>
@@ -28,15 +28,15 @@
 </section>
 
 <section class="rx-card rx-reveal mt-6 p-6" style="--i:1">
-  <h2 class="font-semibold text-white">Pharmacy × manufacturer</h2>
+  <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Pharmacy × manufacturer</h2>
   <p class="mt-1 text-sm text-slate-400">Each pharmacy's share of a manufacturer, where there was a choice of versions, against that manufacturer's share of the network (the tick).</p>
   <div class="mt-5 overflow-x-auto">
     <table class="w-full min-w-[34rem] text-sm">
-      <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-3 font-medium">Pharmacy</th><th class="pb-3 font-medium">Manufacturer</th><th class="w-1/3 pb-3"></th><th class="pb-3 text-right font-medium">Share</th><th class="pb-3 text-right font-medium">Network</th></tr></thead>
+      <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-3 font-medium"><span class="inline-flex items-center gap-1.5"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-3.5 w-3.5"></i> Pharmacy</span></th><th class="pb-3 font-medium"><span class="inline-flex items-center gap-1.5"><i data-lucide="{{ 'manufacturer'|icon }}" class="h-3.5 w-3.5"></i> Manufacturer</span></th><th class="w-1/3 pb-3"></th><th class="pb-3 text-right font-medium">Share</th><th class="pb-3 text-right font-medium">Network</th></tr></thead>
       <tbody class="divide-y divide-white/5">
         {% for r in manufacturers|slice:":30" %}
           <tr>
-            <td class="py-3 pr-4"><a href="{% insights_link 'pharmacy' r.pharmacy %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="flag" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}{{ r.pharmacy|pseudonym }}</a></td>
+            <td class="py-3 pr-4"><a href="{% insights_link 'pharmacy' r.pharmacy %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="{{ 'signal'|icon }}" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}{{ r.pharmacy|pseudonym }}</a></td>
             <td class="py-3 pr-4"><a href="{% insights_link 'manufacturer' r.manufacturer %}" class="text-slate-300 hover:text-brand-secondary">{{ r.manufacturer }}</a></td>
             <td class="py-3 pr-4">{% include "web/insights/_meter.html" with value=r.share baseline=r.network signal=r.stands_out %}</td>
             <td class="py-3 text-right font-semibold {% if r.stands_out %}text-white{% endif %}">{{ r.share|pct }}</td>

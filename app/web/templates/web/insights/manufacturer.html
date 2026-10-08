@@ -3,11 +3,11 @@
 {% block title %}{{ profile.name }}{% endblock %}
 {% block insights %}
 {% with p=profile %}
-{% include "web/insights/_entity_header.html" with kicker="Manufacturer · open catalog" title=p.name signals=None %}
+{% include "web/insights/_entity_header.html" with kind="manufacturer" kicker="Manufacturer · open catalog" title=p.name signals=None %}
 
 <div class="mt-6 grid gap-6 lg:grid-cols-2">
   <section class="rx-card rx-reveal p-6" style="--i:1">
-    <h2 class="font-semibold text-white">Its products</h2>
+    <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'product'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Its products</h2>
     <p class="mt-1 text-xs text-slate-500">Units handed out, and their share of everything dispensed for the same medication.</p>
     <ul class="mt-4 space-y-4 text-sm">
       {% for product, m, units, share in p.products %}
@@ -20,19 +20,19 @@
   </section>
 
   <section class="rx-card rx-reveal p-6" style="--i:2">
-    <h2 class="font-semibold text-white">Pharmacies that choose it</h2>
+    <h2 class="flex items-center gap-2 font-semibold text-white"><i data-lucide="{{ 'pharmacy'|icon }}" class="h-4 w-4 shrink-0 text-brand-secondary"></i> Pharmacies that choose it</h2>
     <p class="mt-1 text-xs text-slate-500">Each pharmacy's share of this manufacturer where there was a choice; the tick is its share of the network.</p>
     <ul class="mt-4 space-y-4 text-sm">
       {% for r in p.pharmacies %}
         <li>
-          <div class="flex items-center justify-between"><a href="{% insights_link 'pharmacy' r.pharmacy %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="flag" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}Pharmacy {{ r.pharmacy|pseudonym }}</a><span class="text-slate-300">{{ r.share|pct }}</span></div>
+          <div class="flex items-center justify-between"><a href="{% insights_link 'pharmacy' r.pharmacy %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="{{ 'signal'|icon }}" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}Pharmacy {{ r.pharmacy|pseudonym }}</a><span class="text-slate-300">{{ r.share|pct }}</span></div>
           <div class="mt-2">{% include "web/insights/_meter.html" with value=r.share baseline=r.network signal=r.stands_out %}</div>
         </li>
       {% empty %}
         <li class="text-slate-500">None yet.</li>
       {% endfor %}
     </ul>
-    <h3 class="mt-6 text-sm font-semibold text-white">Prescribers who lock its brands</h3>
+    <h3 class="mt-6 flex items-center gap-2 text-sm font-semibold text-white"><i data-lucide="{{ 'brand lock'|icon }}" class="h-3.5 w-3.5 shrink-0 text-brand-secondary"></i> Prescribers who lock its brands</h3>
     <ul class="mt-2 space-y-1 text-sm">
       {% for who, n in p.lockers %}<li class="flex justify-between"><a href="{% insights_link 'prescriber' who %}" class="font-mono text-xs text-slate-300 hover:text-brand-secondary">Prescriber {{ who|pseudonym }}</a><span class="text-slate-400">{{ n }}</span></li>{% empty %}<li class="text-slate-500">None.</li>{% endfor %}
     </ul>
