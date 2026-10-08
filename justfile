@@ -14,12 +14,37 @@ _default:
 dc env *ARGS:
     @env="$1"; shift; docker compose -p "rxtrail-$env" --env-file "envs/$env.env" "$@"
 
+# --- Getting started ------------------------------------------------------------
+
+# The program is built first, so the app never starts with another program's IDL.
+# From a fresh clone to the browser: localnet up, program deployed, demo seeded.
+quickstart:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just build
+    just bootstrap localnet
+    just deploy localnet
+    just rx localnet demo
+    port=$(sed -n 's/^WEB_PORT=//p' envs/localnet.env)
+    echo
+    echo "RxTrail is running: http://localhost:${port}  (every demo password: rxtrail-demo)"
+
 # --- Environments -------------------------------------------------------------
 
+# Create an environment's config (envs/<env>.env, as your user) and key folder.
+configure env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f envs/{{env}}.env ]; then
+        sed "s/^HOST_UID=.*/HOST_UID=$(id -u)/; s/^HOST_GID=.*/HOST_GID=$(id -g)/" \
+            envs/{{env}}.env.example > envs/{{env}}.env
+        echo "created envs/{{env}}.env"
+    fi
+    mkdir -p -m 700 .keys/{{env}}
+    mkdir -p program/target/deploy
+
 # First run of an environment: config, images, services, migrations.
-bootstrap env="localnet":
-    @test -f envs/{{env}}.env || cp envs/{{env}}.env.example envs/{{env}}.env
-    @mkdir -p -m 700 .keys/{{env}}
+bootstrap env="localnet": (configure env)
     just dc {{env}} --profile tools build
     just dc {{env}} up -d --wait
     just dc {{env}} exec web python manage.py migrate
@@ -53,8 +78,9 @@ status env:
         echo \"program \$program\"
         solana program show \$program --url $url --keypair /keys/deployer.json 2>&1 | head -3 || true"
 
-# Deploy the compiled program. Localnet: deployer funded from the local faucet.
-# Devnet: the deployer needs ~2.1 SOL at the moment of deploying.
+# Localnet: the deployer is funded from the local faucet. Devnet: it needs
+# ~2.9 SOL at the moment of deploying (README: what it costs).
+# Deploy the compiled program.
 deploy env:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -101,8 +127,27 @@ reset-localnet:
 chain *ARGS:
     @docker compose -p rxtrail-localnet --env-file envs/localnet.env --profile tools run --rm chain "$@"
 
+# Taken from .keys/rxtrail-program-keypair.json when you have the project's
+# key; otherwise a new local one, with the source (declare_id!, Anchor.toml)
+# pointed at it, so a fresh clone builds and deploys under its own address.
+# The program's address keypair, needed to deploy (`build` runs this).
+program-id:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key=program/target/deploy/rxtrail-keypair.json
+    [ -f "$key" ] && exit 0
+    mkdir -p program/target/deploy
+    if [ -f .keys/rxtrail-program-keypair.json ]; then
+        cp .keys/rxtrail-program-keypair.json "$key"
+        exit 0
+    fi
+    docker compose -p rxtrail-localnet --env-file envs/localnet.env --profile tools run --rm -T chain sh -c \
+        "solana-keygen new --no-bip39-passphrase --silent -o target/deploy/rxtrail-keypair.json && anchor keys sync"
+    echo "note: this clone deploys under its own program id. Three files now carry it"
+    echo "      (lib.rs, Anchor.toml and, after the build, the app's IDL): don't commit them."
+
 # Compile the program; copy its IDL (the program's interface) to the app.
-build:
+build: (configure "localnet") program-id
     just dc localnet --profile tools run --rm chain anchor build
     cp program/target/idl/rxtrail.json app/solana_client/rxtrail_idl.json
 

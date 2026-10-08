@@ -16,8 +16,15 @@ x-app: &app
       condition: service_healthy
 
 x-chain: &chain
-  build: program
+  build:
+    context: program
+    args:
+      UID: ${HOST_UID:-1000}
+      GID: ${HOST_GID:-1000}
   image: rxtrail-chain
+  # Agave and Anchor ship x86-64 Linux binaries; Apple Silicon runs them
+  # emulated (Docker Desktop: enable Rosetta).
+  platform: linux/amd64
   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
 services:

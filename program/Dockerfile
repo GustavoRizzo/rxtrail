@@ -5,13 +5,19 @@ FROM debian:trixie-slim
 
 ARG AGAVE_VERSION=v4.3.0
 ARG ANCHOR_VERSION=1.2.1
+# The host user's ids (compose passes HOST_UID/HOST_GID): the toolchain lives
+# in this user's home, and files written to the working tree stay yours.
+ARG UID=1000
+ARG GID=1000
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential bzip2 ca-certificates curl git libssl-dev libudev-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd --create-home --uid 1000 builder \
+# --non-unique: the host's ids may already exist in the image (macOS gid 20).
+RUN groupadd --non-unique --gid "${GID}" builder \
+    && useradd --non-unique --create-home --uid "${UID}" --gid "${GID}" builder \
     && mkdir /work && chown builder:builder /work
 USER builder
 WORKDIR /home/builder

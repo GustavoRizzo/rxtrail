@@ -1,5 +1,9 @@
 name: CI
 
+# CI starts from a fresh clone, like a newcomer: the same `just` recipes, no
+# project keys. Without the program keypair, `just build` makes a throwaway
+# program id and points the source at it, in CI's checkout only.
+
 on:
   push:
     branches: [main]
@@ -12,15 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: extractions/setup-just@v3
-      - name: Configure the localnet environment
-        run: |
-          cp envs/localnet.env.example envs/localnet.env
-          sed -i "s/^HOST_UID=.*/HOST_UID=$(id -u)/; s/^HOST_GID=.*/HOST_GID=$(id -g)/" envs/localnet.env
-          mkdir -p -m 700 .keys/localnet program/target/deploy
-      - name: Throwaway program id
-        # The real program keypair is never committed. CI makes a throwaway
-        # one and points declare_id!/Anchor.toml at it, in CI's checkout only.
-        run: just chain sh -c "solana-keygen new --no-bip39-passphrase --silent -o target/deploy/rxtrail-keypair.json && anchor keys sync"
       - name: Build, lint and test (LiteSVM)
         run: |
           just build
@@ -34,19 +29,13 @@ jobs:
       - uses: actions/checkout@v5
       - uses: extractions/setup-just@v3
       - uses: astral-sh/setup-uv@v7
-      - name: Configure the localnet environment
-        run: |
-          cp envs/localnet.env.example envs/localnet.env
-          sed -i "s/^HOST_UID=.*/HOST_UID=$(id -u)/; s/^HOST_GID=.*/HOST_GID=$(id -g)/" envs/localnet.env
-          mkdir -p -m 700 .keys/localnet program/target/deploy
       - name: Lint
         run: just lint-app
-      - name: Start the environment (database, app, validator)
-        run: just bootstrap localnet
-      - name: Throwaway program id, build, deploy
+      - name: Build the program
+        run: just build
+      - name: Start the environment (database, app, validator) and deploy
         run: |
-          just chain sh -c "solana-keygen new --no-bip39-passphrase --silent -o target/deploy/rxtrail-keypair.json && anchor keys sync"
-          just build
+          just bootstrap localnet
           just deploy localnet
       - name: Test
         run: just test-app -v
