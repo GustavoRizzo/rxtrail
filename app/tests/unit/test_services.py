@@ -6,17 +6,22 @@ import pytest
 
 from rxtrail import catalog, documents
 from rxtrail.domain import (
+    AlreadyDispensedError,
     CatalogStatus,
+    ClosureKind,
+    ClosureReason,
     ExpiryInThePastError,
     MedicationDetails,
     MedicationNotActiveError,
     NotFoundError,
     NotRegisteredError,
     PrescribedProductMismatchError,
+    PrescriptionNotActiveError,
     ProductDetails,
     ProductKind,
     ProductNotActiveError,
     QuantityExceedsRemainingError,
+    Standing,
 )
 from rxtrail.services import RxTrail
 from tests.fakes import (
@@ -252,3 +257,72 @@ async def test_a_locked_product_is_the_only_one_dispensable(app, ledger):
 async def test_locking_an_unknown_product_is_refused(app):
     with pytest.raises(NotFoundError):
         await issue(app, locked_product_id=(b"\xee" * 32).hex())
+
+
+# -- cancel and stop ---------------------------------------------------------------
+
+
+async def test_cancelling_closes_on_chain_and_keeps_the_note_off_chain(app, ledger, vault):
+    issued = await issue(app)
+
+    await app.cancel(
+        "dr-ana", issued.prescription_id, ClosureReason.ISSUED_IN_ERROR, "  wrong patient  "
+    )
+
+    prescription = ledger.prescriptions[issued.prescription_id]
+    assert prescription.standing(T0) is Standing.CANCELLED
+    closure = ledger.closures[prescription.address]
+    assert (closure.kind, closure.reason) == (ClosureKind.CANCELLED, ClosureReason.ISSUED_IN_ERROR)
+    assert closure.quantity_voided == 30
+    assert vault.notes[issued.prescription_id] == "wrong patient"
+    with pytest.raises(PrescriptionNotActiveError):
+        await dispense(app, issued.prescription_id, 1)
+
+
+async def test_cancelling_after_a_dispensation_is_refused_before_sending(app, ledger):
+    issued = await issue(app)
+    await dispense(app, issued.prescription_id, 10)
+
+    with pytest.raises(AlreadyDispensedError):
+        await app.cancel("dr-ana", issued.prescription_id, ClosureReason.OTHER)
+
+    assert "cancelled" not in ledger.calls
+
+
+async def test_stopping_voids_only_what_remains(app, ledger, vault):
+    issued = await issue(app)
+    await dispense(app, issued.prescription_id, 10)
+
+    await app.stop("dr-ana", issued.prescription_id, ClosureReason.SUSPECTED_MISUSE)
+
+    trail = await app.audit(issued.prescription_id)
+    assert trail.consistent, trail.problems
+    assert trail.closure.quantity_dispensed == 10
+    assert trail.closure.quantity_voided == 20
+    assert len(trail.dispensations) == 1
+    assert issued.prescription_id not in vault.notes  # no note given, none stored
+
+
+async def test_the_audit_flags_a_closure_that_does_not_add_up(app, ledger):
+    from dataclasses import replace
+
+    issued = await issue(app)
+    await dispense(app, issued.prescription_id, 10)
+    await app.stop("dr-ana", issued.prescription_id, ClosureReason.OTHER)
+    address = ledger.prescriptions[issued.prescription_id].address
+    ledger.closures[address] = replace(ledger.closures[address], quantity_voided=25)
+
+    trail = await app.audit(issued.prescription_id)
+
+    assert not trail.consistent
+    assert any("voided 25" in problem for problem in trail.problems)
+
+
+async def test_the_audit_flags_a_closed_status_without_its_closure(app, ledger):
+    issued = await issue(app)
+    await app.cancel("dr-ana", issued.prescription_id, ClosureReason.OTHER)
+    ledger.closures.clear()
+
+    trail = await app.audit(issued.prescription_id)
+
+    assert any("no closure" in problem for problem in trail.problems)

@@ -26,6 +26,8 @@ def anchor_discriminator(namespace: str, name: str) -> bytes:
         "register_product",
         "issue_prescription",
         "dispense",
+        "cancel_prescription",
+        "stop_prescription",
     ],
 )
 def test_instruction_discriminators_follow_anchors_rule(name):
@@ -35,7 +37,16 @@ def test_instruction_discriminators_follow_anchors_rule(name):
 
 @pytest.mark.parametrize(
     "name",
-    ["Config", "Prescriber", "Dispenser", "Medication", "Product", "Prescription", "Dispensation"],
+    [
+        "Config",
+        "Prescriber",
+        "Dispenser",
+        "Medication",
+        "Product",
+        "Prescription",
+        "Dispensation",
+        "PrescriptionClosure",
+    ],
 )
 def test_account_discriminators_follow_anchors_rule(name):
     assert IDL.account_discriminator(name) == anchor_discriminator("account", name)
@@ -157,6 +168,8 @@ def _sample_args(name):
             "expires_at": 1,
         },
         "dispense": {"quantity": 1},
+        "cancel_prescription": {"reason": "IssuedInError"},
+        "stop_prescription": {"reason": "SuspectedMisuse"},
         "set_prescriber_status": {"status": "Suspended"},
         "set_dispenser_status": {"status": "Active"},
     }[name]
@@ -167,3 +180,25 @@ def test_unit_enum_arguments_are_their_variant_index(status, byte):
     data = IDL.encode_instruction("set_prescriber_status", {"status": status})
     assert data[:8] == anchor_discriminator("global", "set_prescriber_status")
     assert data[8:] == bytes([byte])
+
+
+@pytest.mark.parametrize(
+    ("reason", "byte"),
+    [
+        ("IssuedInError", 0),
+        ("Replaced", 1),
+        ("ClinicalDecision", 2),
+        ("SuspectedMisuse", 3),
+        ("Other", 4),
+    ],
+)
+def test_closure_reasons_are_their_variant_index(reason, byte):
+    assert IDL.encode_instruction("cancel_prescription", {"reason": reason})[8:] == bytes([byte])
+
+
+def test_every_closure_reason_has_a_variant_on_chain():
+    from rxtrail.domain import ClosureReason
+    from solana_client.ledger import _value, _variant
+
+    for reason in ClosureReason:
+        assert _value(_variant(reason.value)) == reason.value

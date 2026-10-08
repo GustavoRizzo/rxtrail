@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 
-from rxtrail.domain import Standing
+from rxtrail.domain import PrescriptionStatus, Standing
 from tests.fakes import T0, a_prescription
 
 
@@ -20,3 +20,16 @@ from tests.fakes import T0, a_prescription
 )
 def test_standing(dispensed, now, expected):
     assert a_prescription(granted=30, dispensed=dispensed).standing(now) is expected
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (PrescriptionStatus.CANCELLED, Standing.CANCELLED),
+        (PrescriptionStatus.STOPPED, Standing.STOPPED),
+    ],
+)
+def test_a_closed_prescription_stands_as_closed_even_once_expired(status, expected):
+    prescription = a_prescription(granted=30, dispensed=10, status=status)
+    assert prescription.standing(T0) is expected
+    assert prescription.standing(T0 + timedelta(days=90)) is expected

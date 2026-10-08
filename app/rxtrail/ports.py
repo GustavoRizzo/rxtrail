@@ -11,6 +11,9 @@ from typing import Protocol, Self
 
 from rxtrail.domain import (
     CatalogStatus,
+    Closure,
+    ClosureKind,
+    ClosureReason,
     Dispensation,
     Medication,
     MedicationDetails,
@@ -96,6 +99,20 @@ class PrescriptionLedger(Protocol):
         self, dispenser: str, prescription_id: bytes, product_id: bytes, quantity: int
     ) -> Receipt: ...
 
+    async def close_prescription(
+        self,
+        prescriber: str,
+        prescription_id: bytes,
+        kind: ClosureKind,
+        reason: ClosureReason,
+    ) -> Receipt:
+        """Cancel (nothing dispensed) or stop (partly dispensed) for good."""
+        ...
+
+    async def closure(self, prescription: Prescription) -> Closure | None:
+        """The prescriber's cancel or stop act, if the prescription was closed."""
+        ...
+
     async def prescription(self, prescription_id: bytes) -> Prescription | None: ...
 
     async def prescriptions_by_id(self, ids: Sequence[bytes]) -> list[Prescription | None]:
@@ -107,6 +124,14 @@ class PrescriptionLedger(Protocol):
         ...
 
     async def dispensations(self, prescription: Prescription) -> Sequence[Dispensation]: ...
+
+    # -- the whole public record, for analysis --
+
+    async def all_prescriptions(self) -> list[Prescription]: ...
+
+    async def all_dispensations(self) -> list[Dispensation]: ...
+
+    async def all_closures(self) -> list[Closure]: ...
 
 
 class DocumentVault(Protocol):
@@ -123,6 +148,11 @@ class DocumentVault(Protocol):
 
     async def fetch(self, prescription_id: bytes) -> tuple[PrescriptionDocument, bytes] | None:
         """(document, salt), or None if this vault does not hold it."""
+        ...
+
+    async def record_closure_note(self, prescription_id: bytes, note: str) -> None:
+        """The prescriber's private note on a cancel or stop: it may hold
+        health data, so it never goes on-chain."""
         ...
 
 

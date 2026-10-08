@@ -12,14 +12,22 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from rxtrail.domain import (
+    AlreadyDispensedError,
     CatalogStatus,
+    Closure,
+    ClosureKind,
     Dispensation,
     Medication,
     MedicationNotActiveError,
+    NothingDispensedError,
+    NothingRemainingError,
+    NotPrescriptionIssuerError,
     NotRegisteredError,
     PrescribedProductMismatchError,
     Prescription,
     PrescriptionDocument,
+    PrescriptionExpiredError,
+    PrescriptionNotActiveError,
     PrescriptionStatus,
     Product,
     ProductMedicationMismatchError,
@@ -51,6 +59,7 @@ class FakeLedger:
         self.prescriptions: dict[bytes, Prescription] = {}
         self.dispensed: dict[bytes, list[Dispensation]] = {}
         self.catalog: dict[str, Medication | Product] = {}  # by address
+        self.closures: dict[str, Closure] = {}  # by prescription address
         self.calls: list[str] = []
         self._add_medication(MEDICATION_ID, b"\x00" * 32)
         self._add_product(REFERENCE_ID, MEDICATION_ID, b"\x00" * 32)
@@ -189,6 +198,8 @@ class FakeLedger:
             raise ProductNotActiveError("ProductNotActive")
         if current.prescribed_product not in (None, product.address):
             raise PrescribedProductMismatchError("PrescribedProductMismatch")
+        if current.status != PrescriptionStatus.ACTIVE:
+            raise PrescriptionNotActiveError("PrescriptionNotActive")
         if quantity > current.remaining:
             raise QuantityExceedsRemainingError("QuantityExceedsRemaining")
         updated = replace(
@@ -210,6 +221,40 @@ class FakeLedger:
         self.dispensed[prescription_id].append(record)
         return Receipt(f"sig-dispense-{record.index}", record.address)
 
+    async def close_prescription(self, prescriber, prescription_id, kind, reason):
+        self.calls.append(kind.value)
+        current = self.prescriptions[prescription_id]
+        if current.prescriber != self.address_of(prescriber):
+            raise NotPrescriptionIssuerError("NotPrescriptionIssuer")
+        if current.status != PrescriptionStatus.ACTIVE:
+            raise PrescriptionNotActiveError("PrescriptionNotActive")
+        if self.now() >= current.expires_at:
+            raise PrescriptionExpiredError("PrescriptionExpired")
+        if kind is ClosureKind.CANCELLED and current.dispensation_count:
+            raise AlreadyDispensedError("AlreadyDispensed")
+        if kind is ClosureKind.STOPPED and not current.dispensation_count:
+            raise NothingDispensedError("NothingDispensed")
+        if kind is ClosureKind.STOPPED and not current.remaining:
+            raise NothingRemainingError("NothingRemaining")
+        self.prescriptions[prescription_id] = replace(
+            current, status=PrescriptionStatus(kind.value)
+        )
+        closure = Closure(
+            address=f"{current.address}-closure",
+            prescription=current.address,
+            prescriber=current.prescriber,
+            kind=kind,
+            reason=reason,
+            quantity_dispensed=current.quantity_dispensed,
+            quantity_voided=current.remaining,
+            closed_at=self.now(),
+        )
+        self.closures[current.address] = closure
+        return Receipt(f"sig-{kind.value}", closure.address)
+
+    async def closure(self, prescription):
+        return self.closures.get(prescription.address)
+
     async def prescription(self, prescription_id):
         return self.prescriptions.get(prescription_id)
 
@@ -223,10 +268,20 @@ class FakeLedger:
     async def dispensations(self, prescription):
         return list(self.dispensed.get(prescription.id, []))
 
+    async def all_prescriptions(self):
+        return list(self.prescriptions.values())
+
+    async def all_dispensations(self):
+        return [d for found in self.dispensed.values() for d in found]
+
+    async def all_closures(self):
+        return list(self.closures.values())
+
 
 class FakeVault:
     def __init__(self):
         self.documents: dict[bytes, tuple[bytes, PrescriptionDocument, bytes]] = {}
+        self.notes: dict[bytes, str] = {}
 
     async def store(self, prescription_id, patient_id, prescriber, document, salt):
         self.documents[prescription_id] = (patient_id, document, salt)
@@ -234,6 +289,9 @@ class FakeVault:
     async def fetch(self, prescription_id):
         stored = self.documents.get(prescription_id)
         return None if stored is None else (stored[1], stored[2])
+
+    async def record_closure_note(self, prescription_id, note):
+        self.notes[prescription_id] = note
 
 
 class FakePatients:
@@ -275,7 +333,12 @@ def a_document(quantity: int = 30, **changes) -> PrescriptionDocument:
 
 
 def a_prescription(
-    granted=30, dispensed=0, expires_in=timedelta(days=30), locked: str | None = None
+    granted=30,
+    dispensed=0,
+    expires_in=timedelta(days=30),
+    locked: str | None = None,
+    dispensations: int | None = None,
+    status=PrescriptionStatus.ACTIVE,
 ) -> Prescription:
     return Prescription(
         id=b"\x01" * 32,
@@ -285,10 +348,10 @@ def a_prescription(
         document_hash=b"\x03" * 32,
         quantity_granted=granted,
         quantity_dispensed=dispensed,
-        dispensation_count=0,
+        dispensation_count=(1 if dispensed else 0) if dispensations is None else dispensations,
         issued_at=T0,
         expires_at=T0 + expires_in,
-        status=PrescriptionStatus.ACTIVE,
+        status=status,
         prescribed_product=locked,
     )
 

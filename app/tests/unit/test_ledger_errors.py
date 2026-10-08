@@ -12,7 +12,11 @@ from solana.exceptions import SolanaRpcException
 from solana.rpc.core import RPCException
 
 from rxtrail.domain import (
+    AlreadyDispensedError,
     LedgerUnavailableError,
+    NothingDispensedError,
+    NothingRemainingError,
+    NotPrescriptionIssuerError,
     NotRegisteredError,
     OutcomeUnknownError,
     QuantityExceedsRemainingError,
@@ -48,6 +52,10 @@ def preflight(message: str) -> RPCException:
         ),
         ("InstructionError(0, Custom(6008))", QuantityExceedsRemainingError),
         ("custom program error: 0xbc4", NotRegisteredError),  # 3012: no such participant
+        ("custom program error: 0x177e", NotPrescriptionIssuerError),  # 6014
+        ("InstructionError(0, Custom(6015))", AlreadyDispensedError),
+        ("InstructionError(0, Custom(6016))", NothingDispensedError),
+        ("InstructionError(0, Custom(6017))", NothingRemainingError),
     ],
 )
 def test_refusals_the_program_explains_map_to_their_domain_error(ledger, message, expected):

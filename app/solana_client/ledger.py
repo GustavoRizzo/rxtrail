@@ -22,7 +22,7 @@ from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
 from solana.rpc.core import RPCException
-from solana.rpc.models import TxOpts
+from solana.rpc.models import MemcmpOpts, TxOpts
 from solders.instruction import AccountMeta, Instruction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
@@ -32,6 +32,9 @@ from solders.transaction import Transaction
 from rxtrail.domain import (
     PROGRAM_ERRORS,
     CatalogStatus,
+    Closure,
+    ClosureKind,
+    ClosureReason,
     Dispensation,
     LedgerUnavailableError,
     Medication,
@@ -66,6 +69,28 @@ MULTIPLE_ACCOUNTS_LIMIT = 100
 
 def _timestamp(seconds: int) -> datetime:
     return datetime.fromtimestamp(seconds, UTC)
+
+
+_BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _base58(data: bytes) -> str:
+    """What getProgramAccounts filters take."""
+    number, text = int.from_bytes(data, "big"), ""
+    while number:
+        number, digit = divmod(number, 58)
+        text = _BASE58[digit] + text
+    return "1" * (len(data) - len(data.lstrip(b"\0"))) + text
+
+
+def _variant(value: str) -> str:
+    """A domain enum value as the program's variant name: issued_in_error → IssuedInError."""
+    return "".join(part.capitalize() for part in value.split("_"))
+
+
+def _value(variant: str) -> str:
+    """The reverse: IssuedInError → issued_in_error."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", variant).lower()
 
 
 class SolanaLedger:
@@ -332,6 +357,33 @@ class SolanaLedger:
             address=record,
         )
 
+    async def close_prescription(
+        self,
+        prescriber: str,
+        prescription_id: bytes,
+        kind: ClosureKind,
+        reason: ClosureReason,
+    ) -> Receipt:
+        key = self._keys.keypair(prescriber).pubkey()
+        address = pdas.prescription(self.program_id, prescription_id)
+        record = pdas.closure(self.program_id, address)
+        instruction = {
+            ClosureKind.CANCELLED: "cancel_prescription",
+            ClosureKind.STOPPED: "stop_prescription",
+        }[kind]
+        return await self._send(
+            instruction,
+            {"reason": _variant(reason.value)},
+            {
+                "prescriber_signer": key,
+                "prescriber": pdas.prescriber(self.program_id, key),
+                "prescription": address,
+                "closure": record,
+            },
+            signers=[prescriber],
+            address=record,
+        )
+
     # -- reads ----------------------------------------------------------------------
 
     async def genesis_hash(self) -> str:
@@ -371,8 +423,26 @@ class SolanaLedger:
             dispensation_count=raw["dispensation_count"],
             issued_at=_timestamp(raw["issued_at"]),
             expires_at=_timestamp(raw["expires_at"]),
-            status=PrescriptionStatus(raw["status"].lower()),
+            status=PrescriptionStatus(_value(raw["status"])),
             prescribed_product=raw["prescribed_product"],
+        )
+
+    async def closure(self, prescription: Prescription) -> Closure | None:
+        address = pdas.closure(self.program_id, Pubkey.from_string(prescription.address))
+        data = await self._account(address)
+        return None if data is None else self._closure(address, data)
+
+    def _closure(self, address: Pubkey, data: bytes) -> Closure:
+        raw = self._idl.decode_account("PrescriptionClosure", data)
+        return Closure(
+            address=str(address),
+            prescription=raw["prescription"],
+            prescriber=raw["prescriber"],
+            kind=ClosureKind(_value(raw["kind"])),
+            reason=ClosureReason(_value(raw["reason"])),
+            quantity_dispensed=raw["quantity_dispensed"],
+            quantity_voided=raw["quantity_voided"],
+            closed_at=_timestamp(raw["closed_at"]),
         )
 
     async def medication(self, medication_id: bytes) -> Medication | None:
@@ -433,24 +503,52 @@ class SolanaLedger:
             for i in range(prescription.dispensation_count)
         ]
         response = await self._call(self._client.get_multiple_accounts, addresses)
-        found = []
-        for address, account in zip(addresses, response.value, strict=True):
-            if account is None:
-                continue
-            raw = self._idl.decode_account("Dispensation", bytes(account.data))
-            found.append(
-                Dispensation(
-                    address=str(address),
-                    prescription=raw["prescription"],
-                    index=raw["index"],
-                    dispenser=raw["dispenser"],
-                    product=raw["product"],
-                    quantity=raw["quantity"],
-                    remaining_after=raw["remaining_after"],
-                    dispensed_at=_timestamp(raw["dispensed_at"]),
-                )
-            )
-        return found
+        return [
+            self._dispensation(address, bytes(account.data))
+            for address, account in zip(addresses, response.value, strict=True)
+            if account is not None
+        ]
+
+    def _dispensation(self, address: Pubkey, data: bytes) -> Dispensation:
+        raw = self._idl.decode_account("Dispensation", data)
+        return Dispensation(
+            address=str(address),
+            prescription=raw["prescription"],
+            index=raw["index"],
+            dispenser=raw["dispenser"],
+            product=raw["product"],
+            quantity=raw["quantity"],
+            remaining_after=raw["remaining_after"],
+            dispensed_at=_timestamp(raw["dispensed_at"]),
+        )
+
+    # -- the whole public record (getProgramAccounts) ----------------------------------
+
+    async def all_prescriptions(self) -> list[Prescription]:
+        return [self._prescription(a, d) for a, d in await self._program_accounts("Prescription")]
+
+    async def all_dispensations(self) -> list[Dispensation]:
+        return [self._dispensation(a, d) for a, d in await self._program_accounts("Dispensation")]
+
+    async def all_closures(self) -> list[Closure]:
+        found = await self._program_accounts("PrescriptionClosure")
+        return [self._closure(a, d) for a, d in found]
+
+    async def _program_accounts(self, name: str) -> list[tuple[Pubkey, bytes]]:
+        """Every account of one type the program owns, found by its discriminator.
+
+        One call per type. Heavy on public nodes: pages that use it cache the
+        result; at scale, an indexer replaces it."""
+        discriminator = _base58(self._idl.account_discriminator(name))
+        response = await self._call(
+            self._client.get_program_accounts,
+            self.program_id,
+            Confirmed,
+            "base64",
+            None,
+            [MemcmpOpts(offset=0, bytes=discriminator)],
+        )
+        return [(item.pubkey, bytes(item.account.data)) for item in response.value]
 
     # -- operator funding (local development only) -------------------------------------
 
@@ -459,6 +557,12 @@ class SolanaLedger:
         payer = self._keys.keypair(self._operator).pubkey()
         response = await self._call(self._client.request_airdrop, payer, lamports)
         await self._wait(str(response.value), await self._confirmations.expect(str(response.value)))
+
+    async def rent_exempt_minimum(self, data_bytes: int) -> int:
+        """The rent deposit this network asks for an account of that size."""
+        return (
+            await self._call(self._client.get_minimum_balance_for_rent_exemption, data_bytes)
+        ).value
 
     async def operator_balance(self) -> int:
         payer = self._keys.keypair(self._operator).pubkey()

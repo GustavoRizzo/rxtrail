@@ -1,0 +1,65 @@
+{% extends "web/insights/_layout.html" %}
+{% load rxtrail %}
+{% block title %}Pharmacy {{ profile.address|pseudonym }}{% endblock %}
+{% block insights %}
+{% with p=profile name=profile.address|pseudonym %}
+{% include "web/insights/_entity_header.html" with kicker="Pharmacy" title="Pharmacy "|add:name address=p.address signals=p.signals %}
+
+<section class="rx-reveal mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4" style="--i:1">
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Dispensations</p><p class="mt-1 text-3xl font-bold text-white">{{ p.dispensations|length }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units handed out</p><p class="mt-1 text-3xl font-bold text-white">{{ p.units }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Generic rate</p><p class="mt-1 text-3xl font-bold text-white">{% if p.generics %}{{ p.generics.value|pct }}{% else %}–{% endif %}</p><p class="text-xs text-slate-500">network {{ p.network_generic_rate|pct }}{% if p.generics %} · {{ p.generics.sample }} could choose{% endif %}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescribers served</p><p class="mt-1 text-3xl font-bold text-white">{{ p.prescribers|length }}</p></div>
+</section>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+  <section class="rx-card rx-reveal p-6" style="--i:2">
+    <h2 class="font-semibold text-white">Manufacturers it chooses</h2>
+    <p class="mt-1 text-xs text-slate-500">Where there was a choice of versions; the tick is the manufacturer's share of the network.</p>
+    <ul class="mt-4 space-y-4 text-sm">
+      {% for r in p.manufacturers %}
+        <li>
+          <div class="flex items-center justify-between"><a href="{% insights_link 'manufacturer' r.manufacturer %}" class="{% if r.stands_out %}font-semibold text-white{% else %}text-slate-200{% endif %} hover:text-brand-secondary">{{ r.manufacturer }}</a><span class="text-slate-300">{{ r.share|pct }} <span class="text-xs text-slate-500">· network {{ r.network|pct }}</span></span></div>
+          <div class="mt-2">{% include "web/insights/_meter.html" with value=r.share baseline=r.network signal=r.stands_out %}</div>
+        </li>
+      {% empty %}
+        <li class="text-slate-500">No dispensation with a choice of versions.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="rx-card rx-reveal p-6" style="--i:3">
+    <h2 class="font-semibold text-white">Whose prescriptions it fills</h2>
+    <ul class="mt-4 space-y-3 text-sm">
+      {% for who, n, share in p.prescribers|slice:":12" %}
+        <li>
+          <div class="flex items-center justify-between"><a href="{% insights_link 'prescriber' who %}" class="font-mono text-xs text-slate-200 hover:text-brand-secondary">Prescriber {{ who|pseudonym }}</a><span class="text-slate-300">{{ share|pct }} <span class="text-xs text-slate-500">· {{ n }}</span></span></div>
+          <div class="mt-2">{% include "web/insights/_meter.html" with value=share baseline=None signal=False %}</div>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+<section class="rx-card rx-reveal mt-6 p-6" style="--i:4">
+  <h2 class="font-semibold text-white">Dispensations</h2>
+  <p class="mt-1 text-xs text-slate-500">Each one signed by this pharmacy's key.{% if p.dispensations|length > shown %} Newest {{ shown }} of {{ p.dispensations|length }}.{% endif %}</p>
+  <div class="mt-4 overflow-x-auto">
+    <table class="w-full min-w-[36rem] text-sm">
+      <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-2 font-medium">When</th><th class="pb-2 font-medium">Product</th><th class="pb-2 text-right font-medium">Units</th><th class="pb-2 pl-4 font-medium">Prescribed as</th><th></th></tr></thead>
+      <tbody class="divide-y divide-white/5">
+        {% for d, rx, m, product in rows %}
+          <tr>
+            <td class="py-2.5 text-slate-400">{{ d.dispensed_at|date:"M j, Y H:i" }}</td>
+            <td class="py-2.5 text-slate-200">{{ product.brand }} <span class="text-xs text-slate-500">{{ product.manufacturer }} · {{ product.kind }}</span></td>
+            <td class="py-2.5 text-right text-slate-300">{{ d.quantity }}</td>
+            <td class="py-2.5 pl-4 text-slate-400">{{ m.name }}{% if rx.prescribed_product %} <i data-lucide="lock-keyhole" class="inline h-3 w-3 text-brand-secondary" aria-label="brand locked"></i>{% endif %}</td>
+            <td class="py-2.5 text-right">{% if rx %}<a href="{% url 'web:prescription' rx.id.hex %}" class="inline-flex items-center gap-1 text-brand-secondary hover:underline">record <i data-lucide="arrow-right" class="h-3.5 w-3.5"></i></a>{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endwith %}
+{% endblock %}

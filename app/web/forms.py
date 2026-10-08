@@ -2,7 +2,7 @@ from django import forms
 from django.core.validators import RegexValidator
 
 from records.models import CatalogProduct
-from rxtrail.domain import Standing
+from rxtrail.domain import ClosureReason, Standing
 
 HEX_ID = RegexValidator(r"^[0-9a-f]{64}$", "Not a catalog id.")
 
@@ -26,6 +26,18 @@ class DispenseForm(forms.Form):
     prescription_id = forms.CharField(max_length=64, min_length=64)
     product_id = _hex_id(error_messages={"required": "Choose the product handed out."})
     quantity = forms.IntegerField(min_value=1)
+
+
+class CloseForm(forms.Form):
+    """Cancel (nothing dispensed yet) or stop (the rest of a partial one)."""
+
+    kind = forms.ChoiceField(choices=[("cancel", "Cancel"), ("stop", "Stop")])
+    reason = forms.ChoiceField(
+        choices=[(r.value, r.label) for r in ClosureReason],
+        error_messages={"required": "Choose a reason."},
+    )
+    # Private: may hold health data, so it never goes on-chain.
+    note = forms.CharField(max_length=500, required=False)
 
 
 class MedicationForm(forms.Form):

@@ -9,6 +9,127 @@
   },
   "instructions": [
     {
+      "name": "cancel_prescription",
+      "docs": [
+        "The issuing prescriber cancels a prescription nobody dispensed yet."
+      ],
+      "discriminator": [
+        190,
+        125,
+        217,
+        32,
+        50,
+        6,
+        88,
+        238
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "prescriber_signer",
+          "signer": true
+        },
+        {
+          "name": "prescriber",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescriber_signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription.id",
+                "account": "Prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "closure",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  111,
+                  115,
+                  117,
+                  114,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": {
+            "defined": {
+              "name": "ClosureReason"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "dispense",
       "discriminator": [
         59,
@@ -1087,6 +1208,128 @@
           }
         }
       ]
+    },
+    {
+      "name": "stop_prescription",
+      "docs": [
+        "The issuing prescriber stops a partly dispensed prescription: what",
+        "remains can no longer be dispensed."
+      ],
+      "discriminator": [
+        80,
+        99,
+        204,
+        101,
+        119,
+        157,
+        253,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "prescriber_signer",
+          "signer": true
+        },
+        {
+          "name": "prescriber",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  98,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescriber_signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "prescription",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  99,
+                  114,
+                  105,
+                  112,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription.id",
+                "account": "Prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "closure",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  108,
+                  111,
+                  115,
+                  117,
+                  114,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "prescription"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": {
+            "defined": {
+              "name": "ClosureReason"
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -1166,6 +1409,19 @@
         111,
         195,
         251
+      ]
+    },
+    {
+      "name": "PrescriptionClosure",
+      "discriminator": [
+        114,
+        153,
+        179,
+        13,
+        124,
+        45,
+        186,
+        62
       ]
     },
     {
@@ -1259,6 +1515,19 @@
         25,
         181,
         122
+      ]
+    },
+    {
+      "name": "PrescriptionClosed",
+      "discriminator": [
+        203,
+        77,
+        199,
+        183,
+        71,
+        222,
+        159,
+        217
       ]
     },
     {
@@ -1358,6 +1627,26 @@
       "code": 6013,
       "name": "PrescribedProductMismatch",
       "msg": "The prescriber locked another product: substitution not allowed"
+    },
+    {
+      "code": 6014,
+      "name": "NotPrescriptionIssuer",
+      "msg": "Only the prescriber who issued the prescription may close it"
+    },
+    {
+      "code": 6015,
+      "name": "AlreadyDispensed",
+      "msg": "Already dispensed: it can no longer be cancelled, only stopped"
+    },
+    {
+      "code": 6016,
+      "name": "NothingDispensed",
+      "msg": "Nothing dispensed yet: cancel the prescription instead"
+    },
+    {
+      "code": 6017,
+      "name": "NothingRemaining",
+      "msg": "Nothing remains on the prescription"
     }
   ],
   "types": [
@@ -1405,6 +1694,47 @@
           {
             "name": "changed_at",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClosureKind",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Stopped"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ClosureReason",
+      "docs": [
+        "Why a prescription was closed. Non-clinical categories on purpose: this is",
+        "public, and a clinical reason would be health data. Details stay off-chain."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "IssuedInError"
+          },
+          {
+            "name": "Replaced"
+          },
+          {
+            "name": "ClinicalDecision"
+          },
+          {
+            "name": "SuspectedMisuse"
+          },
+          {
+            "name": "Other"
           }
         ]
       }
@@ -1880,6 +2210,111 @@
       }
     },
     {
+      "name": "PrescriptionClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prescription",
+            "type": "pubkey"
+          },
+          {
+            "name": "prescriber",
+            "type": "pubkey"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "ClosureKind"
+              }
+            }
+          },
+          {
+            "name": "reason",
+            "type": {
+              "defined": {
+                "name": "ClosureReason"
+              }
+            }
+          },
+          {
+            "name": "quantity_dispensed",
+            "type": "u32"
+          },
+          {
+            "name": "quantity_voided",
+            "type": "u32"
+          },
+          {
+            "name": "closed_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrescriptionClosure",
+      "docs": [
+        "The prescriber's act of cancelling or stopping a prescription. One per",
+        "prescription (closing is final); created once, never modified."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "prescription",
+            "type": "pubkey"
+          },
+          {
+            "name": "prescriber",
+            "docs": [
+              "Key of the prescriber who signed it."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "ClosureKind"
+              }
+            }
+          },
+          {
+            "name": "reason",
+            "type": {
+              "defined": {
+                "name": "ClosureReason"
+              }
+            }
+          },
+          {
+            "name": "quantity_dispensed",
+            "docs": [
+              "Dispensed before the closure (0 when cancelled)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "quantity_voided",
+            "docs": [
+              "What the closure voided: the remaining balance."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "closed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "PrescriptionIssued",
       "type": {
         "kind": "struct",
@@ -1920,6 +2355,12 @@
         "variants": [
           {
             "name": "Active"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Stopped"
           }
         ]
       }

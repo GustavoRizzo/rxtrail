@@ -1,0 +1,49 @@
+{% extends "web/insights/_layout.html" %}
+{% load rxtrail %}
+{% block title %}Overview{% endblock %}
+{% block insights %}
+{% include "web/insights/_question.html" with kicker="The public record" question="The whole network in numbers" lede="Counts of prescriptions and dispensations, never of patients: the chain does not know who the patients are." %}
+{% with o=overview %}
+<section class="rx-reveal grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescriptions</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescriptions }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Dispensations</p><p class="mt-1 text-3xl font-bold text-white">{{ o.dispensations }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Prescribers</p><p class="mt-1 text-3xl font-bold text-white">{{ o.prescribers }}</p><p class="text-xs text-slate-500">median {{ o.per_prescriber_median|floatformat:"-1" }} rx · max {{ o.per_prescriber_max }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Pharmacies</p><p class="mt-1 text-3xl font-bold text-white">{{ o.pharmacies }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units dispensed</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_dispensed }}</p><p class="text-xs text-slate-500">of {{ o.units_granted }} granted · {{ o.use_rate|pct }}</p></div>
+  <div class="rx-card p-5"><p class="text-xs text-slate-500">Units voided</p><p class="mt-1 text-3xl font-bold text-white">{{ o.units_voided }}</p><p class="text-xs text-slate-500">by cancel or stop</p></div>
+</section>
+
+<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+  <section class="rx-card rx-reveal p-6" style="--i:1">
+    <h2 class="font-semibold text-white">By medication</h2>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full min-w-[30rem] text-sm">
+        <thead class="text-left text-xs uppercase tracking-wide text-slate-500"><tr><th class="pb-2 font-medium">Medication</th><th class="pb-2 text-right font-medium">Rx</th><th class="pb-2 text-right font-medium">Granted</th><th class="pb-2 text-right font-medium">Dispensed</th><th class="w-1/4 pb-2 pl-4 font-medium">Used</th></tr></thead>
+        <tbody class="divide-y divide-white/5">
+          {% for m, n, granted, dispensed in o.by_medication %}
+            <tr>
+              <td class="py-2.5"><a href="{% insights_link 'medication' m.address %}" class="text-slate-200 hover:text-brand-secondary">{{ m.name }}</a></td>
+              <td class="py-2.5 text-right font-semibold text-white">{{ n }}</td>
+              <td class="py-2.5 text-right text-slate-400">{{ granted }}</td>
+              <td class="py-2.5 text-right text-slate-400">{{ dispensed }}</td>
+              <td class="py-2.5 pl-4"><div class="rx-meter"><span class="rx-meter-fill" style="width: {% widthratio dispensed granted 100 %}%"></span></div></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <div class="grid h-fit gap-6">
+    <section class="rx-card rx-reveal p-6" style="--i:2">
+      <h2 class="font-semibold text-white">Where prescriptions stand</h2>
+      <ul class="mt-4 space-y-2 text-sm">{% for standing, n in o.standing_rows %}<li class="flex justify-between"><span class="text-slate-300">{{ standing|capfirst }}</span><span class="text-slate-400">{{ n }}</span></li>{% endfor %}</ul>
+    </section>
+    <section class="rx-card rx-reveal p-6" style="--i:3">
+      <h2 class="font-semibold text-white">Why prescribers closed them</h2>
+      <p class="mt-1 text-xs text-slate-500">Public, non-clinical reasons.</p>
+      <ul class="mt-4 space-y-2 text-sm">{% for reason, n in o.closure_rows %}<li class="flex justify-between"><span class="text-slate-300">{{ reason.label }}</span><span class="text-slate-400">{{ n }}</span></li>{% empty %}<li class="text-slate-500">None yet.</li>{% endfor %}</ul>
+    </section>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}

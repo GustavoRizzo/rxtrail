@@ -10,12 +10,19 @@ import pytest
 
 from rxtrail import rules
 from rxtrail.domain import (
+    AlreadyDispensedError,
     CatalogStatus,
+    ClosureKind,
     ExpiryInThePastError,
     InvalidQuantityError,
     MedicationNotActiveError,
+    NothingDispensedError,
+    NothingRemainingError,
+    NotPrescriptionIssuerError,
     PrescribedProductMismatchError,
     PrescriptionExpiredError,
+    PrescriptionNotActiveError,
+    PrescriptionStatus,
     ProductMedicationMismatchError,
     ProductNotActiveError,
     QuantityExceedsRemainingError,
@@ -126,3 +133,50 @@ def test_catalog_checks_come_before_the_counters():
     # As in Rust: account constraints run before the handler's checks.
     with pytest.raises(MedicationNotActiveError):
         dispense(a_prescription(), 0, medication=a_medication(CatalogStatus.WITHDRAWN))
+
+
+# -- cancel and stop (close_prescription.rs) ----------------------------------------
+
+CANCEL, STOP = ClosureKind.CANCELLED, ClosureKind.STOPPED
+
+
+def close(prescription, kind, by="dr", now=T0):
+    rules.check_close(prescription, by, kind, now)
+
+
+def test_an_untouched_prescription_can_be_cancelled_not_stopped():
+    close(a_prescription(), CANCEL)
+    with pytest.raises(NothingDispensedError):
+        close(a_prescription(), STOP)
+
+
+def test_a_partly_dispensed_prescription_can_be_stopped_not_cancelled():
+    close(a_prescription(dispensed=10), STOP)
+    with pytest.raises(AlreadyDispensedError):
+        close(a_prescription(dispensed=10), CANCEL)
+
+
+def test_a_complete_prescription_has_nothing_left_to_stop():
+    with pytest.raises(NothingRemainingError):
+        close(a_prescription(dispensed=30), STOP)
+
+
+def test_only_the_issuer_closes():
+    with pytest.raises(NotPrescriptionIssuerError):
+        close(a_prescription(), CANCEL, by="another-prescriber")
+
+
+@pytest.mark.parametrize("status", [PrescriptionStatus.CANCELLED, PrescriptionStatus.STOPPED])
+def test_closing_is_final(status):
+    with pytest.raises(PrescriptionNotActiveError):
+        close(a_prescription(dispensed=10, status=status), STOP)
+
+
+def test_an_expired_prescription_cannot_be_closed():
+    with pytest.raises(PrescriptionExpiredError):
+        close(a_prescription(), CANCEL, now=T0 + timedelta(days=30))
+
+
+def test_a_closed_prescription_cannot_be_dispensed():
+    with pytest.raises(PrescriptionNotActiveError):
+        dispense(a_prescription(status=PrescriptionStatus.CANCELLED), 1)

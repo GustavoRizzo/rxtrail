@@ -104,6 +104,20 @@ pub mod rxtrail {
         instructions::dispense::handle_dispense(ctx, quantity)
     }
 
+    /// The issuing prescriber cancels a prescription nobody dispensed yet.
+    pub fn cancel_prescription(
+        ctx: Context<ClosePrescription>,
+        reason: ClosureReason,
+    ) -> Result<()> {
+        instructions::close_prescription::handle_close(ctx, ClosureKind::Cancelled, reason)
+    }
+
+    /// The issuing prescriber stops a partly dispensed prescription: what
+    /// remains can no longer be dispensed.
+    pub fn stop_prescription(ctx: Context<ClosePrescription>, reason: ClosureReason) -> Result<()> {
+        instructions::close_prescription::handle_close(ctx, ClosureKind::Stopped, reason)
+    }
+
     /// Suspend or reinstate a prescriber (professional authority only).
     pub fn set_prescriber_status(
         ctx: Context<SetPrescriberStatus>,

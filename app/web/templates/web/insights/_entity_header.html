@@ -1,0 +1,21 @@
+{% load rxtrail %}
+<header class="rx-card rx-reveal p-7">
+  <p class="text-xs uppercase tracking-wide text-slate-500">{{ kicker }}</p>
+  <h1 class="mt-1 text-2xl font-bold text-white">{{ title }}</h1>
+  {% if address %}
+    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+      <code class="break-all font-mono">{{ address }}</code>
+      <a target="_blank" rel="noopener" href="{{ address|explorer }}" class="inline-flex items-center gap-1 text-brand-secondary hover:underline">on the explorer <i data-lucide="external-link" class="h-3 w-3"></i></a>
+    </div>
+    <p class="mt-2 text-xs text-slate-500">Shown by public key: the same id anyone sees on the chain. The name behind it is not part of the public record.</p>
+  {% endif %}
+  {% if signals is not None %}
+    <div class="mt-5">
+      {% for s in signals %}
+        <p class="mt-2 flex items-center gap-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2.5 text-sm text-slate-100"><i data-lucide="flag" class="h-4 w-4 shrink-0 text-brand-primary"></i> Signal: {{ s }}.</p>
+      {% empty %}
+        <p class="flex items-center gap-2 text-sm text-slate-400"><i data-lucide="circle-check" class="h-4 w-4 text-brand-accent"></i> Nothing stands out against peers.</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+</header>

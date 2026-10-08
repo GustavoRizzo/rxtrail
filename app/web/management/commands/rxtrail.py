@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from config import container
 from records.models import CatalogMedication, CatalogProduct
-from rxtrail.domain import PrescriptionDocument, RxTrailError
+from rxtrail.domain import ClosureReason, PrescriptionDocument, RxTrailError
 
 AUTHORITIES = ("professional-authority", "health-authority", "catalog-authority")
 
@@ -24,7 +24,18 @@ class Command(BaseCommand):
         sub = parser.add_subparsers(dest="action", required=True)
 
         sub.add_parser("setup", help="Create keys, fund the operator (localnet), initialize.")
-        sub.add_parser("demo", help="Setup, then demo logins and sample prescriptions.")
+        demo = sub.add_parser("demo", help="Setup, then demo logins and a planned network.")
+        demo.add_argument(
+            "--profile",
+            default="story",
+            help="story (default: every investigation, ~1 SOL) or full (bigger; localnet).",
+        )
+        demo.add_argument(
+            "--estimate", action="store_true", help="Only show what it would create and cost."
+        )
+        demo.add_argument(
+            "--yes", action="store_true", help="Go ahead on a public network (spends SOL)."
+        )
 
         for role in ("prescriber", "dispenser"):
             enable = sub.add_parser(f"enable-{role}", help=f"The authority enables a {role}.")
@@ -58,6 +69,13 @@ class Command(BaseCommand):
         dispense.add_argument("prescription_id", help="Hex id printed by `issue`.")
         dispense.add_argument("product", help="Brand handed out (e.g. 'Calmazen 2 mg') or id.")
         dispense.add_argument("quantity", type=int)
+
+        for verb, what in (("cancel", "nobody dispensed yet"), ("stop", "partly dispensed")):
+            close = sub.add_parser(verb, help=f"The prescriber {verb}s a prescription ({what}).")
+            close.add_argument("prescriber")
+            close.add_argument("prescription_id")
+            close.add_argument("--reason", required=True, choices=[r.value for r in ClosureReason])
+            close.add_argument("--note", default="", help="Private: never on-chain.")
 
         audit = sub.add_parser("audit", help="Verify a prescription's full history.")
         audit.add_argument("prescription_id")
@@ -95,12 +113,14 @@ class Command(BaseCommand):
                 self.stdout.write(f"  initialized: {receipt.signature}")
         self.stdout.write(self.style.SUCCESS("ready."))
 
-    async def _demo(self, **options):
+    async def _demo(self, profile, estimate, yes, **options):
         from web.demo import seed
 
         await self._setup(**options)
         self.stdout.write("demo data:")
-        await seed(self.stdout.write)
+        await seed(self.stdout.write, profile, estimate_only=estimate, confirmed=yes)
+        if estimate:
+            return
         self.stdout.write(
             self.style.SUCCESS(
                 f"demo ready. Every demo password is {settings.RXTRAIL_DEMO_PASSWORD!r}."
@@ -191,6 +211,19 @@ class Command(BaseCommand):
             remaining = (await chain.prescription(prescription)).remaining
         self.stdout.write(f"dispensed {quantity}; {remaining} remain. record: {receipt.address}")
 
+    async def _close(self, verb, prescriber, prescription_id, reason, note):
+        async with container.open_rxtrail() as (app, _chain):
+            receipt = await getattr(app, verb)(
+                prescriber, bytes.fromhex(prescription_id), ClosureReason(reason), note
+            )
+        self.stdout.write(f"{verb} recorded at {receipt.address} ({receipt.signature})")
+
+    async def _cancel(self, prescriber, prescription_id, reason, note, **_):
+        await self._close("cancel", prescriber, prescription_id, reason, note)
+
+    async def _stop(self, prescriber, prescription_id, reason, note, **_):
+        await self._close("stop", prescriber, prescription_id, reason, note)
+
     async def _audit(self, prescription_id, **_):
         async with container.open_rxtrail() as (app, _chain):
             trail = await app.audit(bytes.fromhex(prescription_id))
@@ -205,6 +238,11 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"  #{d.index} {d.dispensed_at:%Y-%m-%d %H:%M:%S} by {d.dispenser}: "
                 f"{d.quantity} (remaining {d.remaining_after})"
+            )
+        if c := trail.closure:
+            self.stdout.write(
+                f"  {c.kind} {c.closed_at:%Y-%m-%d %H:%M:%S} by {c.prescriber} "
+                f"({c.reason.label}): {c.quantity_voided} voided"
             )
         verdict = {True: "matches", False: "DOES NOT MATCH", None: "not held here"}
         self.stdout.write(f"  document: {verdict[trail.document_verified]}")

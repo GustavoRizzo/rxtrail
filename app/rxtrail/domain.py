@@ -18,6 +18,34 @@ class ParticipantStatus(StrEnum):
 
 class PrescriptionStatus(StrEnum):
     ACTIVE = "active"
+    CANCELLED = "cancelled"  # withdrawn by its prescriber before any dispensation
+    STOPPED = "stopped"  # ended by its prescriber after a partial dispensation
+
+
+class ClosureKind(StrEnum):
+    CANCELLED = "cancelled"
+    STOPPED = "stopped"
+
+
+class ClosureReason(StrEnum):
+    """Why a prescriber closed a prescription. Public, so non-clinical on
+    purpose: a clinical reason would be health data. Details stay off-chain."""
+
+    ISSUED_IN_ERROR = "issued_in_error"
+    REPLACED = "replaced"
+    CLINICAL_DECISION = "clinical_decision"
+    SUSPECTED_MISUSE = "suspected_misuse"
+    OTHER = "other"
+
+    @property
+    def label(self) -> str:
+        return {
+            "issued_in_error": "Issued in error",
+            "replaced": "Replaced by a new prescription",
+            "clinical_decision": "Clinical decision",
+            "suspected_misuse": "Suspected misuse",
+            "other": "Other",
+        }[self.value]
 
 
 class CatalogStatus(StrEnum):
@@ -38,12 +66,15 @@ class Standing(StrEnum):
     """Where a prescription stands for the people using it, at a given moment.
 
     Derived from on-chain data, never stored: COMPLETED means every unit
-    granted was dispensed; EXPIRED means the deadline passed with units left.
+    granted was dispensed; EXPIRED means the deadline passed with units left;
+    CANCELLED and STOPPED mirror the prescriber's act, recorded on-chain.
     """
 
     ACTIVE = "active"
     COMPLETED = "completed"
     EXPIRED = "expired"
+    CANCELLED = "cancelled"
+    STOPPED = "stopped"
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +100,10 @@ class Prescription:
         return self.quantity_granted - self.quantity_dispensed
 
     def standing(self, now: datetime) -> Standing:
+        if self.status is PrescriptionStatus.CANCELLED:
+            return Standing.CANCELLED
+        if self.status is PrescriptionStatus.STOPPED:
+            return Standing.STOPPED
         if self.remaining == 0:
             return Standing.COMPLETED
         if now >= self.expires_at:
@@ -88,6 +123,21 @@ class Dispensation:
     quantity: int
     remaining_after: int
     dispensed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class Closure:
+    """A prescriber's act of cancelling or stopping a prescription, on-chain.
+    One per prescription; never modified."""
+
+    address: str
+    prescription: str
+    prescriber: str
+    kind: ClosureKind
+    reason: ClosureReason
+    quantity_dispensed: int  # before the closure; 0 when cancelled
+    quantity_voided: int  # the balance the closure voided
+    closed_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +232,7 @@ class AuditTrail:
     document_verified: bool | None  # None: the off-chain document is not available here
     medication: Medication | None = None  # None: the prescribed medication was not found
     problems: list[str] = field(default_factory=list)
+    closure: Closure | None = None  # set when the prescriber cancelled or stopped it
 
     @property
     def consistent(self) -> bool:
@@ -265,6 +316,22 @@ class PrescribedProductMismatchError(RxTrailError):
     pass
 
 
+class NotPrescriptionIssuerError(RxTrailError):
+    pass
+
+
+class AlreadyDispensedError(RxTrailError):
+    """Cancel refused: a pharmacy already dispensed. Stopping is still possible."""
+
+
+class NothingDispensedError(RxTrailError):
+    pass
+
+
+class NothingRemainingError(RxTrailError):
+    pass
+
+
 class NotRegisteredError(RxTrailError):
     """The signer has no participant record on-chain (Anchor: AccountNotInitialized)."""
 
@@ -311,4 +378,8 @@ PROGRAM_ERRORS: dict[str, type[RxTrailError]] = {
     "ProductNotActive": ProductNotActiveError,
     "ProductMedicationMismatch": ProductMedicationMismatchError,
     "PrescribedProductMismatch": PrescribedProductMismatchError,
+    "NotPrescriptionIssuer": NotPrescriptionIssuerError,
+    "AlreadyDispensed": AlreadyDispensedError,
+    "NothingDispensed": NothingDispensedError,
+    "NothingRemaining": NothingRemainingError,
 }

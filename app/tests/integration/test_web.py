@@ -639,3 +639,205 @@ def test_a_pharmacy_scanning_with_a_phone_can_go_on_to_dispense(client, cast):
 def test_verify_accepts_the_qr_codes_link(client, cast):
     response = client.get("/verify/", {"id": f"https://rxtrail.example/rx/{'AB' * 32}/"})
     assert response["Location"] == f"/rx/{'ab' * 32}/"
+
+
+# -- cancel and stop (RN-04 to RN-04g) ------------------------------------------------
+
+
+def close(client, rx, kind, reason="issued_in_error", note="", user="dr"):
+    client.login(username=user, password="pw")
+    response = client.post(
+        f"/rx/{rx}/close/", {"kind": kind, "reason": reason, "note": note}, follow=True
+    )
+    client.logout()
+    return response
+
+
+def test_only_the_issuing_prescriber_is_offered_to_close(client, cast):
+    _, rx = issue(client)
+    other = make("dr-other", Role.PRESCRIBER)
+    for username in ("pharmacy", "inspector", other.user.username):
+        client.login(username=username, password="pw")
+        assert "Cancel prescription" not in client.get(f"/rx/{rx}/").content.decode()
+        client.logout()
+
+    client.login(username="dr", password="pw")
+    page = client.get(f"/rx/{rx}/").content.decode()
+    assert "Cancel prescription" in page and "Stop the remaining" not in page
+    client.logout()
+    dispense(client, rx, 10)
+    client.login(username="dr", password="pw")
+    assert "Stop the remaining 20" in client.get(f"/rx/{rx}/").content.decode()
+
+
+def test_cancelling_closes_the_prescription_everywhere(client, cast, ledger):
+    _, rx = issue(client)
+
+    page = close(client, rx, "cancel", note="wrong patient").content.decode()
+
+    assert "Cancelled on-chain" in page
+    assert "wrong patient" in page  # the prescriber sees their private note
+    assert ledger.prescriptions[bytes.fromhex(rx)].status == "cancelled"
+    assert PrescriptionRecord.objects.get().closure_note == "wrong patient"
+    assert Activity.objects.filter(action="cancel", prescription_id=rx).exists()
+    assert "PrescriptionNotActive" in dispense(client, rx, 1).content.decode()
+    assert "Cancelled by the prescriber" in client.get("/dispenser/", {"rx": rx}).content.decode()
+    client.logout()
+    public = client.get(f"/rx/{rx}/").content.decode()
+    assert "Cancelled by the prescriber" in public and "Issued in error" in public
+    assert "wrong patient" not in public  # the note is private
+    assert "Cancelled" in client.get(patient_link(rx)).content.decode()
+
+
+def test_stopping_voids_the_rest_and_keeps_the_dispensations(client, cast, ledger):
+    _, rx = issue(client)
+    dispense(client, rx, 10)
+
+    page = close(client, rx, "stop", reason="suspected_misuse").content.decode()
+
+    assert "Stopped on-chain" in page
+    assert "20 units voided" in page and "Suspected misuse" in page
+    assert "Dispensed 10" in page
+    client.login(username="dr", password="pw")
+    assert "Stopped · 20 voided" in client.get("/prescriber/").content.decode()
+
+
+def test_a_cancel_that_loses_the_race_is_refused_not_turned_into_a_stop(client, cast, ledger):
+    _, rx = issue(client)
+    client.login(username="dr", password="pw")
+    assert "Cancel prescription" in client.get(f"/rx/{rx}/").content.decode()
+    client.logout()
+    dispense(client, rx, 10)  # a pharmacy gets there first
+
+    page = close(client, rx, "cancel").content.decode()
+
+    assert "A pharmacy dispensed in the meantime" in page
+    assert ledger.prescriptions[bytes.fromhex(rx)].status == "active"
+    assert "Stop the remaining 20" in page
+
+
+def test_another_prescriber_cannot_close(client, cast, ledger):
+    _, rx = issue(client)
+    other = make("dr-other", Role.PRESCRIBER)
+    ledger.prescribers.add("dr-other")
+
+    page = close(client, rx, "cancel", user=other.user.username).content.decode()
+
+    assert "NotPrescriptionIssuer" in page
+    assert ledger.prescriptions[bytes.fromhex(rx)].status == "active"
+
+
+def test_closing_needs_a_reason(client, cast, ledger):
+    _, rx = issue(client)
+
+    page = close(client, rx, "cancel", reason="").content.decode()
+
+    assert "Choose a reason" in page
+    assert ledger.prescriptions[bytes.fromhex(rx)].status == "active"
+
+
+# -- insights (public, pseudonymous, never accusing) ----------------------------------
+
+INSIGHT_PAGES = [
+    "/insights/",
+    "/insights/overview/",
+    "/insights/new-drugs/",
+    "/insights/generics/",
+    "/insights/brand-locks/",
+    "/insights/volume/",
+]
+
+# Words an indicator page must never use: it shows signals, never findings.
+ACCUSING = ("fraud", "guilty", "corrupt", "bribe", "criminal", "suspicious")
+
+
+@pytest.fixture
+def network(client, cast, ledger):
+    """A few prescriptions, dispensed and closed, with the cache emptied."""
+    from web.insights import forget
+
+    cast["dr"].display_name = "Dr. Unmistakable Surname"
+    cast["dr"].save()
+    client.login(username="dr", password="pw")
+    for patient in ("Maria Silva", "Ana Souto", "Rui Bento"):
+        client.post(
+            "/prescriber/",
+            {
+                "patient_name": patient,
+                "patient_document": f"123-{patient}",
+                "medication_id": MEDICATION_ID.hex(),
+                "dosage": "1 at night",
+                "quantity": 30,
+                "valid_days": 30,
+            },
+        )
+    client.logout()
+    rxs = list(PrescriptionRecord.objects.values_list("prescription_id", flat=True))
+    dispense(client, rxs[0], 30, product=GENERIC_ID)
+    dispense(client, rxs[1], 10)
+    close(client, rxs[2], "cancel", reason="suspected_misuse")
+    forget()
+    yield ledger
+    forget()
+
+
+def every_insight_page(client, ledger) -> dict[str, str]:
+    pages = {url: client.get(url) for url in INSIGHT_PAGES}
+    rx = next(iter(ledger.prescriptions.values()))
+    dispensation = next(d for found in ledger.dispensed.values() for d in found)
+    for url in (
+        f"/insights/prescriber/{rx.prescriber}/",
+        f"/insights/pharmacy/{dispensation.dispenser}/",
+        f"/insights/medication/{rx.medication}/",
+        "/insights/manufacturer/Acme Pharma/",
+    ):
+        pages[url] = client.get(url)
+    return pages
+
+
+def test_insights_are_public_and_every_page_renders(client, network):
+    for url, response in every_insight_page(client, network).items():
+        assert response.status_code == 200, url
+
+
+def test_insights_never_name_a_prescriber_a_pharmacy_or_a_patient(client, network):
+    for url, response in every_insight_page(client, network).items():
+        page = response.content.decode()
+        for name in ("Unmistakable", "Maria Silva", "Ana Souto", "123-Rui"):
+            assert name not in page, (url, name)
+
+
+def test_insights_speak_of_signals_never_of_findings(client, network):
+    for url, response in every_insight_page(client, network).items():
+        page = response.content.decode().lower()
+        assert "signals for investigation, not findings" in page, url
+        for word in ACCUSING:
+            assert word not in page, (url, word)
+
+
+def test_insights_show_the_public_record(client, network):
+    page = client.get("/insights/overview/").content.decode()
+
+    assert "Clonazepam 2 mg tablet" in page  # the medication is public
+    assert "Suspected misuse" in page  # closure reasons are public, non-clinical
+    rx = next(iter(network.prescriptions.values()))
+    profile = client.get(f"/insights/prescriber/{rx.prescriber}/").content.decode()
+    assert f"/rx/{rx.id.hex()}/" in profile  # every number leads to its records
+
+
+def test_an_unknown_entity_is_not_found(client, network):
+    assert client.get("/insights/prescriber/nobody/").status_code == 404
+    assert client.get("/insights/manufacturer/Nobody Labs/").status_code == 404
+
+
+def test_the_insights_read_only_public_sources():
+    """The insights never touch the operator's private records."""
+    import inspect
+
+    from rxtrail import insights as domain
+    from web import insights, insights_views
+
+    for module in (domain, insights, insights_views):
+        source = inspect.getsource(module)
+        for private in ("PrescriptionRecord", "Patient", "Participant", "Activity"):
+            assert private not in source, (module.__name__, private)

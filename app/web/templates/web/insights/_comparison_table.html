@@ -1,0 +1,20 @@
+{% load rxtrail %}{# rows: Comparison list; kind: prescriber | pharmacy; sample_label #}
+<div class="mt-5 overflow-x-auto">
+  <table class="w-full min-w-[34rem] text-sm">
+    <thead class="text-left text-xs uppercase tracking-wide text-slate-500">
+      <tr><th class="pb-3 font-medium">{{ kind|capfirst }}</th><th class="w-1/2 pb-3 font-medium"></th><th class="pb-3 text-right font-medium">Share</th><th class="pb-3 text-right font-medium">{{ sample_label }}</th></tr>
+    </thead>
+    <tbody class="divide-y divide-white/5">
+      {% for r in rows %}
+        <tr class="{% if not r.enough_data %}text-slate-500{% endif %}">
+          <td class="py-3 pr-4"><a href="{% insights_link kind r.subject %}" class="flex items-center gap-2 font-mono text-xs {% if r.stands_out %}font-semibold text-white{% else %}text-slate-300{% endif %} hover:text-brand-secondary">{% if r.stands_out %}<i data-lucide="flag" class="h-3.5 w-3.5 text-brand-primary" aria-label="stands out"></i>{% endif %}{{ kind|capfirst }} {{ r.subject|pseudonym }}</a></td>
+          <td class="py-3 pr-4">{% include "web/insights/_meter.html" with value=r.value baseline=r.baseline signal=r.stands_out %}</td>
+          <td class="py-3 text-right font-semibold {% if r.stands_out %}text-white{% endif %}">{{ r.value|pct }}</td>
+          <td class="py-3 text-right text-slate-400">{{ r.sample }}{% if not r.enough_data %} <span class="text-xs" title="Too few to compare">· too few</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="py-6 text-center text-slate-500">Nothing to compare yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

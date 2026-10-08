@@ -1,0 +1,17 @@
+{% extends "web/base.html" %}
+{% load rxtrail %}
+{% block content %}
+{% with here=request.resolver_match.url_name %}
+<nav class="rx-reveal mb-6 flex flex-wrap items-center gap-1 text-sm" aria-label="Insights">
+  <a href="{% url 'web:insights' %}" class="mr-2 flex items-center gap-2 font-semibold text-white"><i data-lucide="radar" class="h-5 w-5 text-brand-accent"></i> Insights</a>
+  {% for name, label, icon, question in tabs %}
+    <a href="{% url name %}" class="flex items-center gap-1.5 rounded-full px-3 py-1.5 {% if here == name|cut:'web:' %}bg-white/10 text-white{% else %}text-slate-400 hover:bg-white/5 hover:text-slate-100{% endif %}"><i data-lucide="{{ icon }}" class="h-4 w-4"></i> {{ label }}</a>
+  {% endfor %}
+</nav>
+{% endwith %}
+{% block insights %}{% endblock %}
+<aside class="rx-reveal mt-10 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-xs text-slate-400">
+  <i data-lucide="info" class="mt-0.5 h-4 w-4 shrink-0 text-brand-secondary"></i>
+  <p><span class="font-semibold text-slate-200">Signals for investigation, not findings.</span> A number that stands out often has a legitimate explanation; conclusions belong to the competent authority. Everything here comes from public data only (the Solana program's accounts and the <a class="text-brand-secondary hover:underline" href="{% url 'web:catalog_json' %}">open catalog</a>), so anyone can recompute it. Prescribers and pharmacies appear by their public key, never by name; nothing here concerns patients.</p>
+</aside>
+{% endblock %}

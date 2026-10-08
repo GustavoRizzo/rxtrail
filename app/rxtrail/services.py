@@ -8,11 +8,16 @@ from rxtrail import catalog, documents, rules
 from rxtrail.domain import (
     AuditTrail,
     CatalogStatus,
+    Closure,
+    ClosureKind,
+    ClosureReason,
     Medication,
     MedicationDetails,
     NotFoundError,
     ParticipantStatus,
+    Prescription,
     PrescriptionDocument,
+    PrescriptionStatus,
     ProductDetails,
     Receipt,
     new_id,
@@ -130,6 +135,35 @@ class RxTrail:
 
     # -- prescriber ----------------------------------------------------------
 
+    async def cancel(
+        self, prescriber: str, prescription_id: bytes, reason: ClosureReason, note: str = ""
+    ) -> Receipt:
+        """Void a prescription nobody dispensed yet (RN-04). Final."""
+        return await self._close(prescriber, prescription_id, ClosureKind.CANCELLED, reason, note)
+
+    async def stop(
+        self, prescriber: str, prescription_id: bytes, reason: ClosureReason, note: str = ""
+    ) -> Receipt:
+        """Void what remains of a partly dispensed prescription (RN-04b). Final."""
+        return await self._close(prescriber, prescription_id, ClosureKind.STOPPED, reason, note)
+
+    async def _close(
+        self,
+        prescriber: str,
+        prescription_id: bytes,
+        kind: ClosureKind,
+        reason: ClosureReason,
+        note: str,
+    ) -> Receipt:
+        prescription = await self._ledger.prescription(prescription_id)
+        if prescription is None:
+            raise NotFoundError(f"no prescription {prescription_id.hex()}")
+        rules.check_close(prescription, self._ledger.address_of(prescriber), kind, self._now())
+        receipt = await self._ledger.close_prescription(prescriber, prescription_id, kind, reason)
+        if note.strip():
+            await self._vault.record_closure_note(prescription_id, note.strip())
+        return receipt
+
     async def issue(
         self,
         prescriber: str,
@@ -226,6 +260,9 @@ class RxTrail:
                     f"dispensation {d.index} says {d.remaining_after} remain, history says {remaining}"
                 )
 
+        closure = await self._ledger.closure(prescription)
+        problems.extend(_closure_problems(prescription, closure))
+
         stored = await self._vault.fetch(prescription_id)
         verified = None
         if stored is not None:
@@ -235,5 +272,34 @@ class RxTrail:
                 problems.append("off-chain document does not match the on-chain hash")
         medication = await self._medication_at(prescription.medication)
         return AuditTrail(
-            prescription, dispensations, verified, problems=problems, medication=medication
+            prescription,
+            dispensations,
+            verified,
+            problems=problems,
+            medication=medication,
+            closure=closure,
         )
+
+
+def _closure_problems(prescription: Prescription, closure: Closure | None) -> list[str]:
+    """A closed prescription has exactly one closure that adds up, and vice versa."""
+    closed = prescription.status is not PrescriptionStatus.ACTIVE
+    if closure is None:
+        return [f"status is {prescription.status}, but no closure was found"] if closed else []
+    if not closed:
+        return ["a closure exists, but the prescription is still active"]
+    problems = []
+    if closure.kind.value != prescription.status.value:
+        problems.append(f"closure says {closure.kind}, status says {prescription.status}")
+    if closure.kind is ClosureKind.CANCELLED and prescription.dispensation_count:
+        problems.append("cancelled, yet dispensations exist")
+    if closure.quantity_dispensed != prescription.quantity_dispensed:
+        problems.append(
+            f"closure says {closure.quantity_dispensed} dispensed, "
+            f"counter says {prescription.quantity_dispensed}"
+        )
+    if closure.quantity_voided != prescription.remaining:
+        problems.append(
+            f"closure voided {closure.quantity_voided}, but {prescription.remaining} remain"
+        )
+    return problems

@@ -50,10 +50,12 @@
             <p class="text-sm text-slate-500">of {{ found.quantity_granted }} remaining</p>
           </div>
         </div>
-        <div class="rx-progress mt-5{% if frozen %} is-muted{% endif %}"><span style="width: {% widthratio found.quantity_dispensed found.quantity_granted 100 %}%"></span></div>
+        <div class="rx-progress mt-5{% if frozen or found.status != 'active' %} is-muted{% endif %}"><span style="width: {% widthratio found.quantity_dispensed found.quantity_granted 100 %}%"></span></div>
 
         {% if frozen %}
           <p class="mt-6 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-slate-200"><i data-lucide="snowflake" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-danger">Frozen: medication withdrawn.</span> The catalog authority recalled {{ medication.record.name }}. No pharmacy can dispense it until it is reinstated.</span></p>
+        {% elif found.status != "active" %}
+          <p class="mt-6 flex items-start gap-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300"><i data-lucide="{% if found.status == 'cancelled' %}circle-x{% else %}circle-stop{% endif %}" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-slate-100">{% if found.status == "cancelled" %}Cancelled by the prescriber.{% else %}Stopped by the prescriber.{% endif %}</span> Nothing more can be dispensed on this prescription.</span></p>
         {% elif found.remaining %}
           <form method="post" action="{% url 'web:dispense' %}" class="mt-6 grid gap-4" x-data="{ qty: Math.min(1, {{ found.remaining }}), busy: false }" @submit="busy = true">
             {% csrf_token %}

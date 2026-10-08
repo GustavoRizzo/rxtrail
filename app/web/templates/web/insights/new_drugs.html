@@ -1,0 +1,47 @@
+{% extends "web/insights/_layout.html" %}
+{% load rxtrail %}
+{% block title %}Who is pushing the new drug?{% endblock %}
+{% block insights %}
+{% include "web/insights/_question.html" with kicker="Laboratory lobbying · same job, different molecule" question="Who is pushing the new drug?" lede="Within a therapeutic class, medications do the same job. When a few prescribers give one of them a share far above their peers', it may be a preference, a specialism, or a sales push. Compare each prescriber with the median of the others." %}
+
+<form method="get" class="rx-card rx-reveal flex flex-wrap items-end gap-4 p-5">
+  <label class="block min-w-64 flex-1 text-xs font-medium uppercase tracking-wide text-slate-500">Therapeutic class (ATC)
+    <span class="relative mt-1.5 block">
+      <select name="class" class="rx-input normal-case" onchange="this.form.requestSubmit()">
+        {% for code, label in classes %}<option value="{{ code }}"{% if code == chosen %} selected{% endif %}>{{ code }} · {{ label }}</option>{% endfor %}
+      </select>
+      <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
+    </span>
+  </label>
+  <noscript><button class="rx-button px-4 py-2 text-sm">Show</button></noscript>
+</form>
+
+{% if share %}
+<section class="rx-card rx-reveal mt-6 p-6" style="--i:1">
+  <h2 class="font-semibold text-white">{{ class_label }}: who gets the prescriptions</h2>
+  <p class="mt-1 text-sm text-slate-400">{{ share.total }} prescription{{ share.total|pluralize }} in this class. Choose the medication to compare prescribers on; by default, one with no generic on the market (usually the newest and dearest).</p>
+  <ul class="mt-5 space-y-3">
+    {% for m, n in share.medications %}
+      <li class="grid items-center gap-x-4 gap-y-1 sm:grid-cols-[16rem_1fr_6rem]">
+        <a href="?class={{ chosen }}&focus={{ m.address }}" class="flex items-center gap-2 text-sm {% if m == share.focus %}font-semibold text-white{% else %}text-slate-300 hover:text-white{% endif %}">{% if m == share.focus %}<i data-lucide="crosshair" class="h-4 w-4 text-brand-primary"></i>{% endif %}{{ m.name }}</a>
+        <div class="rx-meter{% if m == share.focus %} is-signal{% endif %}"><span class="rx-meter-fill" style="width: {% widthratio n share.total 100 %}%"></span></div>
+        <p class="text-right text-sm text-slate-300">{{ n }} <span class="text-slate-500">rx</span></p>
+      </li>
+    {% endfor %}
+  </ul>
+  {% if share.focus %}<a href="{% insights_link 'medication' share.focus.address %}" class="mt-4 inline-flex items-center gap-1 text-sm text-brand-secondary hover:underline">Study {{ share.focus.name }} <i data-lucide="arrow-right" class="h-4 w-4"></i></a>{% endif %}
+</section>
+
+<section class="rx-card rx-reveal mt-6 p-6" style="--i:2">
+  <h2 class="font-semibold text-white">Share of {{ share.focus.name }} in each prescriber's {{ chosen }} prescriptions</h2>
+  {% with baseline=share.prescribers.0.baseline %}
+  <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400"><span class="flex items-center gap-1.5"><span class="inline-block h-3 w-0.5 bg-brand-secondary"></span> peers' median: <span class="font-semibold text-slate-200">{{ baseline|pct }}</span></span><span class="flex items-center gap-1.5"><span class="inline-block h-2 w-4 bg-brand-primary"></span> stands out</span></p>
+  {% endwith %}
+  {% include "web/insights/_comparison_table.html" with rows=share.prescribers kind="prescriber" sample_label="class rx" %}
+</section>
+
+{% include "web/insights/_how_to_read.html" with measures="For each prescriber, the share of their prescriptions in this class that went to one medication, against the median prescriber (only prescribers with enough prescriptions to compare)." not_measures="Whether the prescriber was paid, or whether the choice was clinically wrong. Nothing here knows the patients or their conditions." explanations="A specialist's patients, a hospital protocol, intolerance to the older drug, an early adopter of better evidence." %}
+{% else %}
+<p class="rx-card mt-6 p-10 text-center text-slate-500">No class has more than one medication prescribed yet.</p>
+{% endif %}
+{% endblock %}

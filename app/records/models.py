@@ -40,6 +40,9 @@ class PrescriptionRecord(models.Model):
     # Opens the patient's copy (/p/<token>/) without an account: whoever holds
     # the link reads the document, like whoever holds a paper prescription.
     patient_token = models.CharField(max_length=32, unique=True, default=new_patient_token)
+    # The prescriber's private note when cancelling or stopping it: may hold
+    # health data, so it stays here. The act itself (and its reason) is on-chain.
+    closure_note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

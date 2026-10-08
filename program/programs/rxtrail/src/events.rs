@@ -69,3 +69,14 @@ pub struct ParticipantStatusChanged {
     pub status: crate::state::ParticipantStatus,
     pub changed_at: i64,
 }
+
+#[event]
+pub struct PrescriptionClosed {
+    pub prescription: Pubkey,
+    pub prescriber: Pubkey,
+    pub kind: crate::state::ClosureKind,
+    pub reason: crate::state::ClosureReason,
+    pub quantity_dispensed: u32,
+    pub quantity_voided: u32,
+    pub closed_at: i64,
+}

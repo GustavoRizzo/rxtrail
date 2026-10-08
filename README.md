@@ -32,9 +32,9 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
 | Professional authority (e.g. a medical council) | enable, suspend and reinstate prescribers |
 | Health authority (e.g. a health regulator) | enable, suspend and reinstate dispensers |
 | Catalog authority (e.g. a drug regulator) | register medications and products; withdraw (recall) and reinstate them |
-| Prescriber | issue a prescription for a catalog medication: quantity, expiry, document hash; optionally lock one product ("do not substitute") |
+| Prescriber | issue a prescription for a catalog medication: quantity, expiry, document hash; optionally lock one product ("do not substitute"); cancel it before any dispensation, or stop what remains of a partly dispensed one |
 | Dispenser (pharmacy) | dispense against a prescription, never past what remains, recording the product handed out |
-| Anyone | read and verify the full history |
+| Anyone | read and verify the full history; study behaviour patterns at `/insights/` |
 
 - **Non-custodial.** Every action is signed by the participant it is
   attributed to. The operator only pays fees and rent; it cannot sign for
@@ -58,6 +58,20 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
   no longer issue, and none of their prescriptions can be dispensed — the
   answer to a leaked key or a revoked licence. Reinstating restores both;
   nothing already recorded changes.
+- **Cancel and stop, never edit.** The issuing prescriber may cancel a
+  prescription nobody dispensed yet, or stop what remains of a partly
+  dispensed one, with a public, non-clinical reason (a private note stays
+  off-chain). Both are final. If a pharmacy dispenses first, a cancel is
+  refused, never silently turned into a stop. A suspended prescriber cannot
+  do either: whoever holds a leaked key must not void patients' prescriptions.
+- **Open auditing.** `/insights/` reads only public data (every program
+  account, plus the open catalog) and looks for behaviour patterns: who gives
+  a new, pricier drug a share of its class far above their peers; which
+  pharmacies avoid generics; who keeps locking one brand; who writes far more
+  than peers, with the context that tells a specialist from a problem.
+  Prescribers and pharmacies appear by their public key, never by name;
+  nothing concerns patients. Every number leads to the records behind it, and
+  every page says it plainly: signals for investigation, not findings.
 - **Append-only history.** A prescription keeps two counters (dispensed,
   count); each dispensation is a separate account that no instruction can
   modify.
@@ -71,8 +85,9 @@ pharmacies avoid generics. And a recall reaches every pharmacy at once.
 | `Dispenser` | `["dispenser", key]` | status only (by its authority) |
 | `Medication` | `["medication", id]` | status only (withdraw, reinstate) |
 | `Product` | `["product", id]` | status only (withdraw, reinstate) |
-| `Prescription` | `["prescription", id]` | counters only, via `dispense` |
+| `Prescription` | `["prescription", id]` | counters, via `dispense`; status once, via cancel or stop |
 | `Dispensation` | `["dispensation", prescription, index]` | never |
+| `PrescriptionClosure` | `["closure", prescription]` | never (one per prescription: closing is final) |
 
 ## Repository layout
 
@@ -167,7 +182,25 @@ then redeploys and sets up again.
 ### Try it in the browser
 
 ```bash
-just rx localnet demo       # demo logins, enabled on-chain, a catalog, sample prescriptions
+just rx localnet demo       # demo logins, enabled on-chain, a catalog, a network of prescriptions
+```
+
+The demo seeds a small network (14 prescribers, 4 pharmacies, ~200
+prescriptions) that tells the stories below. It is planned in advance and
+deterministic: a run that stops half-way continues where it left, and a
+second run creates nothing. Choose the size, and see the cost before
+anything is sent:
+
+| Profile | What | Devnet cost |
+|---|---|---|
+| `story` (default) | every investigation, with just enough peers to compare | ~0.6 SOL |
+| `full` | ~4× the network around the same stories | ~2.3 SOL; meant for localnet |
+
+```bash
+just rx localnet demo --estimate                # what it would create and cost; sends nothing
+just rx localnet demo --profile full
+just rx devnet demo --estimate
+just rx devnet demo --yes                       # a public network asks for --yes
 ```
 
 Open http://localhost:8142 and sign in: the login page lists the demo
@@ -188,10 +221,39 @@ accounts (one per role) and fills the form for you. A suggested tour:
 5. **Auditor** (Health Inspector) — open any prescription: the verdict, the
    medication and the on-chain history, without the patient's data. Every
    key and record links to the Solana explorer.
+6. **Prescriber again** — open a prescription you issued: cancel it if
+   nobody dispensed it, or stop what remains. The pharmacy is refused from
+   then on, and the public page shows who closed it, when and why.
+7. **Anyone, signed out** — open **Insights**: the case for open auditing,
+   then the investigations below.
+
+#### Explore the investigations
+
+`/insights/` needs no account. Each investigation on its home page is a
+short tour whose links follow whatever stands out in the data.
+
+1. **A new drug, pushed.** Open *New drugs*: in the SSRI class, escitalopram
+   (no generic on the market) gets ~20% of a typical prescriber's
+   prescriptions, but ~90% of three prescribers'. Open one of them: the same
+   pattern against their peers, and each of their prescriptions links to its
+   public record and its accounts on the explorer.
+2. **The pharmacy without generics.** Open *Generics*: where a generic could
+   have been handed out, the network chooses it about half the time; one
+   pharmacy, under 10%. Its page shows which manufacturers it favours.
+3. **Always the same brand.** Open *Brand locks*: one prescriber forbids
+   substitution on most zolpidem prescriptions, always for the same
+   manufacturer's brand; peers almost never do.
+4. **Volume: one signal, two stories.** Open *Volume*: two prescribers write
+   far more of a medication than their peers. One wrote quantities above the
+   regulatory limit, nearly all dispensed at one pharmacy; the other stays
+   within limits and is dispensed everywhere, like a specialist's practice.
+   The same signal, and only the context tells them apart: the insights show
+   signals for an authority to look into, never conclusions.
 
 Anyone can browse the catalog at `/catalog/` and download it as open data.
 
-The demo cast and samples are illustrative and will evolve with the project.
+The demo cast, manufacturers and brands are made up (active ingredients and
+ATC codes are real), and will evolve with the project.
 
 **Demo mode holds the participants' keys on the server** so that one browser
 can play every role; the footer says so. The program itself is unchanged by
@@ -239,6 +301,7 @@ because they are the audit trail.
 | operator | per medication / product in the catalog | 0.00110 / 0.00127 SOL |
 | operator | **per prescription** | **0.00166 SOL** |
 | operator | **per dispensation** | **0.00128 SOL** |
+| operator | per cancel or stop | 0.00111 SOL |
 | operator | per transaction | 0.000005 SOL |
 
 Rent figures use devnet's rate (about 5,070 lamports per account byte, plus
@@ -257,8 +320,8 @@ just test             # program tests (LiteSVM) + app tests
 | Suite | Runs against | Covers |
 |---|---|---|
 | `program/programs/rxtrail/tests` | the compiled program on LiteSVM | every on-chain guarantee, plus a property test: random sequences of requests from several pharmacies never dispense past the grant |
-| `app/tests/unit` | in-memory fakes | rules mirror, document and catalog identity hashing, IDL codec, error mapping, use cases |
-| `app/tests/integration` | Postgres | off-chain store, database permissions, the web pages (who sees and does what) with the chain faked |
+| `app/tests/unit` | in-memory fakes | rules mirror, document and catalog identity hashing, IDL codec, error mapping, use cases; every insight finds the pattern the demo planted, and nothing else |
+| `app/tests/integration` | Postgres | off-chain store, database permissions, the web pages (who sees and does what) with the chain faked; the insights never name a person nor use an accusing word, and read public sources only |
 | `app/tests/localnet` | the program deployed on the local validator | the full flow; refusals come from the chain itself (wrong product, recall, locked brand); **five pharmacies racing for the same prescription at the same time** — exactly the granted quantity lands |
 
 App tests run in the `localnet` environment against its own `_test`
@@ -268,13 +331,11 @@ there (`just deploy localnet`). CI runs everything on each push.
 ## Roadmap
 
 - Devnet deployment
-- Cancelling a prescription before any dispensation, and stopping the
-  remainder of a partly dispensed one
 - Corrections to a dispensation (reversal records)
-- Audit insights: per therapeutic class, which prescribers adopt a new drug
-  far above their peers; which pharmacies dispense generics far below the
-  network. Prescribers and pharmacies appear by their on-chain id, never by
-  name
+- Insights over time: filters by period, and adoption curves after a
+  medication's launch
+- A "reveal identity" action for the professional authority only, itself
+  recorded
 - Wallet sign-in (each participant signs in their own wallet)
 - An indexer of the program's events, so lists and dashboards stop reading
   the chain on every page view

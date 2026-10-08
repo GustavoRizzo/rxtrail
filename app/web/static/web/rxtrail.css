@@ -231,3 +231,19 @@ select.rx-input { appearance: none; padding-right: 2.25rem; cursor: pointer; }
 
 /* Alpine: hide x-cloak'd elements until Alpine has started. */
 [x-cloak] { display: none !important; }
+
+/* Insights: one value against its baseline. A thin bar, rounded at its data
+   end only; the baseline (peers' median, network rate) is a tick across it.
+   Emphasis, not categories: what stands out wears the brand colour, the rest
+   stays grey. Numbers sit beside the bar in text colours, never in its hue. */
+.rx-meter { position: relative; height: 0.625rem; background: rgb(255 255 255 / 0.06); }
+.rx-meter > .rx-meter-fill {
+  position: absolute; inset-block: 0; left: 0;
+  background: rgb(255 255 255 / 0.3);
+  border-radius: 0 4px 4px 0;
+}
+.rx-meter.is-signal > .rx-meter-fill { background: var(--brand-primary); }
+.rx-meter > .rx-meter-baseline {
+  position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px;
+  background: var(--brand-secondary);
+}

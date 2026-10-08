@@ -31,7 +31,9 @@ from records.models import (
 from records.repositories import medication_details
 from rxtrail import catalog as rules_of_thumb
 from rxtrail.domain import (
+    AlreadyDispensedError,
     CatalogStatus,
+    ClosureReason,
     Prescription,
     PrescriptionDocument,
     RxTrailError,
@@ -39,7 +41,13 @@ from rxtrail.domain import (
 )
 from web import catalog, qrcodes
 from web.chain import with_chain
-from web.forms import DispenseForm, EnableParticipantForm, IssueForm, PrescriptionFilterForm
+from web.forms import (
+    CloseForm,
+    DispenseForm,
+    EnableParticipantForm,
+    IssueForm,
+    PrescriptionFilterForm,
+)
 
 Role = Participant.Role
 
@@ -192,6 +200,11 @@ def prescription(request, prescription_id: str):
     )
     is_pharmacy = participant is not None and participant.role == Role.DISPENSER
     can_read = issued_it or is_pharmacy
+    # Only the issuer may close it, and only while it is in force (RN-04d):
+    # cancel if nobody dispensed yet, otherwise stop what remains.
+    close_kind = None
+    if issued_it and rx.standing(datetime.now(UTC)) is Standing.ACTIVE:
+        close_kind = "stop" if rx.dispensation_count else "cancel"
     return render(
         request,
         "web/prescription.html",
@@ -214,8 +227,47 @@ def prescription(request, prescription_id: str):
                 else None
             ),
             "qr": _verification_qr(request, prescription_id) if issued_it else None,
+            "close_kind": close_kind,
+            "reasons": list(ClosureReason),
+            "closure_note": record.closure_note if issued_it else "",
         },
     )
+
+
+@require_POST
+@role_required(Role.PRESCRIBER)
+def close_prescription(request, prescription_id: str):
+    """Cancel or stop, as the prescriber chose. The chain decides; if a pharmacy
+    dispensed in the meantime, a cancel is refused, never turned into a stop."""
+    me = request.participant
+    form = CloseForm(request.POST)
+    if not form.is_valid():
+        for errors in form.errors.values():
+            messages.error(request, " ".join(errors))
+        return redirect("web:prescription", prescription_id=prescription_id)
+    data = form.cleaned_data
+    reason = ClosureReason(data["reason"])
+    try:
+        raw_id = bytes.fromhex(prescription_id)
+    except ValueError as exc:
+        raise Http404("not a prescription id") from exc
+    try:
+        receipt = with_chain(
+            lambda app, _l: getattr(app, data["kind"])(me.key_name, raw_id, reason, data["note"])
+        )
+    except AlreadyDispensedError:
+        messages.error(
+            request,
+            "A pharmacy dispensed in the meantime, so it can no longer be cancelled. "
+            "Its dispensations are listed below; you can still stop what remains.",
+        )
+    except RxTrailError as exc:
+        _fail(request, exc)
+    else:
+        past = "Cancelled" if data["kind"] == "cancel" else "Stopped"
+        _log(me, data["kind"], f"{past}: {reason.label}", prescription_id, receipt.signature)
+        messages.success(request, f"{past} on-chain. No pharmacy can dispense it any more.")
+    return redirect("web:prescription", prescription_id=prescription_id)
 
 
 def patient_copy(request, token: str):

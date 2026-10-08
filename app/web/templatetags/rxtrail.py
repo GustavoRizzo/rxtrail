@@ -48,3 +48,34 @@ def role_icon(role: str) -> str:
 def who(address: str, names: dict) -> str:
     """The participant's name for an on-chain key, or the short key itself."""
     return (names or {}).get(str(address)) or short(address, 6)
+
+
+@register.filter
+def pseudonym(address: str) -> str:
+    """A prescriber or pharmacy on the insights pages: their public key, never a name."""
+    from rxtrail.insights import pseudonym as shorten
+
+    return shorten(str(address))
+
+
+@register.filter
+def pct(value: float | None, digits: int = 0) -> str:
+    """A 0..1 rate as a percentage; a dash when there is none."""
+    return "–" if value is None else f"{value:.{digits}%}"
+
+
+@register.filter
+def bar(value: float | None, scale: float | str = 1.0) -> str:
+    """A bar's width, in percent of its track: value / scale (1 if not given), clamped."""
+    scale = float(scale or 1.0)
+    if not value:
+        return "0"
+    return f"{max(0.0, min(value / scale, 1.0)) * 100:.1f}"
+
+
+@register.simple_tag
+def insights_link(kind: str, key: str) -> str:
+    """Where an entity is studied on the insights pages."""
+    from django.urls import reverse
+
+    return reverse(f"web:insights_{kind}", args=[key])

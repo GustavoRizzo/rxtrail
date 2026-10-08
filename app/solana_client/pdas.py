@@ -39,3 +39,7 @@ def dispensation(program_id: Pubkey, prescription_address: Pubkey, index: int) -
     return _find(
         program_id, b"dispensation", bytes(prescription_address), index.to_bytes(4, "little")
     )
+
+
+def closure(program_id: Pubkey, prescription_address: Pubkey) -> Pubkey:
+    return _find(program_id, b"closure", bytes(prescription_address))

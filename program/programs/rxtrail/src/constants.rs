@@ -8,3 +8,4 @@ pub const PRESCRIPTION_SEED: &[u8] = b"prescription";
 pub const DISPENSATION_SEED: &[u8] = b"dispensation";
 pub const MEDICATION_SEED: &[u8] = b"medication";
 pub const PRODUCT_SEED: &[u8] = b"product";
+pub const CLOSURE_SEED: &[u8] = b"closure";

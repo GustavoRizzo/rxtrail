@@ -3,8 +3,8 @@
 THE PROGRAM IS THE AUTHORITY. Passing these checks proves nothing: it only
 means the transaction is worth sending. Whatever the program then decides is
 final, and a refusal is an error even when these checks did not foresee it. These checks are a copy of the ones in
-program/programs/rxtrail/src/instructions/ (issue_prescription.rs and
-dispense.rs), in the same order. They run before a transaction is built, so
+program/programs/rxtrail/src/instructions/ (issue_prescription.rs,
+dispense.rs and close_prescription.rs), in the same order. They run before a transaction is built, so
 users get a clear message instead of a failed transaction. If a rule changes
 in Rust, change it here too: tests/unit/test_rules.py pins the shared behaviour.
 """
@@ -12,12 +12,17 @@ in Rust, change it here too: tests/unit/test_rules.py pins the shared behaviour.
 from datetime import datetime
 
 from rxtrail.domain import (
+    AlreadyDispensedError,
     CatalogStatus,
+    ClosureKind,
     ExpiryInThePastError,
     InvalidQuantityError,
     Medication,
     MedicationNotActiveError,
     NotFoundError,
+    NothingDispensedError,
+    NothingRemainingError,
+    NotPrescriptionIssuerError,
     PrescribedProductMismatchError,
     Prescription,
     PrescriptionExpiredError,
@@ -87,3 +92,30 @@ def check_dispense(
             f"asked for {quantity}, only {prescription.remaining} of "
             f"{prescription.quantity_granted} remain"
         )
+
+
+def check_close(
+    prescription: Prescription, prescriber_address: str, kind: ClosureKind, now: datetime
+) -> None:
+    """Mirror of ClosePrescription's constraints, then handle_close (RN-04 to
+    RN-04d). The prescriber's own status is checked by the program as well."""
+    if prescription.prescriber != prescriber_address:
+        raise NotPrescriptionIssuerError(
+            "only the prescriber who issued the prescription may close it"
+        )
+    if prescription.status is not PrescriptionStatus.ACTIVE:
+        raise PrescriptionNotActiveError("prescription is not active")
+    if now >= prescription.expires_at:
+        raise PrescriptionExpiredError(
+            f"prescription expired on {prescription.expires_at:%Y-%m-%d}"
+        )
+    if kind is ClosureKind.CANCELLED:
+        if prescription.dispensation_count > 0:
+            raise AlreadyDispensedError(
+                "already dispensed: it can no longer be cancelled, only stopped"
+            )
+        return
+    if prescription.dispensation_count == 0:
+        raise NothingDispensedError("nothing dispensed yet: cancel the prescription instead")
+    if prescription.remaining == 0:
+        raise NothingRemainingError("nothing remains on the prescription")

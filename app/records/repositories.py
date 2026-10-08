@@ -48,6 +48,11 @@ class DjangoDocumentVault:
             return None
         return PrescriptionDocument(**record.document), bytes.fromhex(record.salt)
 
+    async def record_closure_note(self, prescription_id: bytes, note: str) -> None:
+        await PrescriptionRecord.objects.filter(prescription_id=prescription_id.hex()).aupdate(
+            closure_note=note
+        )
+
 
 class DjangoCatalog:
     async def add_medication(

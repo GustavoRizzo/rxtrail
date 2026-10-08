@@ -66,6 +66,10 @@
     <div class="relative w-44 shrink-0 {% if trail.frozen or standing != 'active' %}h-16{% else %}hidden sm:block{% endif %}">
       {% if trail.frozen %}
         <p class="rx-stamp inset-0 text-sm">On hold<br><span class="text-[0.6rem] tracking-widest">medication recalled</span></p>
+      {% elif standing == "cancelled" %}
+        <p class="rx-stamp inset-x-0 top-2 text-lg">Cancelled</p>
+      {% elif standing == "stopped" %}
+        <p class="rx-stamp inset-0 text-sm">Stopped<br><span class="text-[0.6rem] tracking-widest">by the prescriber</span></p>
       {% elif standing == "expired" %}
         <p class="rx-stamp inset-x-0 top-2 text-lg">Expired</p>
       {% elif standing == "completed" %}
@@ -112,6 +116,7 @@
   <section class="mt-8 border-t border-ink/20 pt-5 font-sans text-xs leading-relaxed text-ink-muted">
     <h2 class="font-semibold uppercase tracking-[0.2em]">For the patient</h2>
     <ul class="mt-2 list-disc space-y-1 pl-4">
+      {% if trail.closure %}<li class="font-semibold text-stamp">Your prescriber {% if trail.closure.kind == "cancelled" %}cancelled this prescription{% else %}stopped this prescription: what was left can no longer be collected{% endif %}. Talk to them if you still need the medication.</li>{% endif %}
       {% if trail.frozen %}<li class="font-semibold text-stamp">This medication was recalled by the health authorities. Pharmacies cannot hand it out for now: talk to your prescriber.</li>{% endif %}
       <li>Take this prescription, printed or on your phone, to any pharmacy that uses RxTrail, with an identity document. The pharmacy scans the code at the top.</li>
       <li>You may collect it in parts, at different pharmacies, until {{ rx.expires_at|date:"M j, Y" }}. Every pharmacy sees the same balance at once.</li>

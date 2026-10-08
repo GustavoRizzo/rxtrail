@@ -30,4 +30,12 @@ pub enum RxTrailError {
     ProductMedicationMismatch,
     #[msg("The prescriber locked another product: substitution not allowed")]
     PrescribedProductMismatch,
+    #[msg("Only the prescriber who issued the prescription may close it")]
+    NotPrescriptionIssuer,
+    #[msg("Already dispensed: it can no longer be cancelled, only stopped")]
+    AlreadyDispensed,
+    #[msg("Nothing dispensed yet: cancel the prescription instead")]
+    NothingDispensed,
+    #[msg("Nothing remains on the prescription")]
+    NothingRemaining,
 }

@@ -1,0 +1,5 @@
+{% load rxtrail %}{# value and baseline: 0..1 rates (baseline None: no tick); signal: stands out #}
+<div class="rx-meter{% if signal %} is-signal{% endif %}" role="img" aria-label="{{ value|pct }}{% if baseline is not None %} against {{ baseline|pct }}{% endif %}">
+  <span class="rx-meter-fill" style="width: {{ value|bar }}%"></span>
+  {% if baseline is not None %}<span class="rx-meter-baseline" style="left: {{ baseline|bar }}%"></span>{% endif %}
+</div>

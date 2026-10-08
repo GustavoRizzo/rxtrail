@@ -59,7 +59,7 @@
       <label class="block text-xs font-medium uppercase tracking-wide text-slate-500">Select (open it: the menu uses --surface-raised)
         <span class="relative mt-1.5 block">
           <select class="rx-input normal-case">
-            <option>Any status</option><option>Active</option><option>Completed</option><option>Expired</option>
+            <option>Any status</option><option>Active</option><option>Completed</option><option>Expired</option><option>Cancelled</option><option>Stopped</option>
           </select>
           <i data-lucide="chevron-down" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"></i>
         </span>
@@ -84,6 +84,8 @@
       <span class="flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs text-brand-accent"><i data-lucide="circle-dot" class="h-3 w-3"></i> 10 left</span>
       <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="check" class="h-3 w-3"></i> Completed</span>
       <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="clock-alert" class="h-3 w-3"></i> Expired · 4 unused</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="circle-x" class="h-3 w-3"></i> Cancelled</span>
+      <span class="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-400"><i data-lucide="circle-stop" class="h-3 w-3"></i> Stopped · 20 voided</span>
       {% include "web/_catalog_status.html" with status="withdrawn" %}
     </div>
     <p class="mt-4 flex items-start gap-2 rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-slate-200"><i data-lucide="snowflake" class="mt-0.5 h-4 w-4 shrink-0 text-danger"></i> <span><span class="font-semibold text-danger">Frozen: medication withdrawn.</span> A recall: no pharmacy can dispense until it is reinstated.</span></p>
@@ -94,6 +96,12 @@
       <div class="rx-progress"><span style="width: 100%"></span></div>
       <div class="rx-progress is-muted"><span style="width: 100%"></span></div>
       <p class="font-mono text-xs text-slate-500">.rx-progress.is-muted · completed or expired: over, so it draws no eye</p>
+    </div>
+    <div class="mt-5 grid gap-3">
+      {% include "web/insights/_meter.html" with value=0.2 baseline=0.25 signal=False %}
+      {% include "web/insights/_meter.html" with value=0.88 baseline=0.2 signal=True %}
+      {% include "web/insights/_meter.html" with value=0.47 baseline=None signal=False %}
+      <p class="font-mono text-xs text-slate-500">.rx-meter (insights) · value against its baseline tick; .is-signal when it stands out</p>
     </div>
   </div>
 

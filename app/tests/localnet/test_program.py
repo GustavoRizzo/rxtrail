@@ -8,12 +8,18 @@ import pytest
 from records.repositories import DjangoCatalog, DjangoDocumentVault, DjangoPatientDirectory
 from rxtrail import catalog
 from rxtrail.domain import (
+    AlreadyDispensedError,
+    ClosureKind,
+    ClosureReason,
     MedicationDetails,
     MedicationNotActiveError,
     NotCatalogAuthorityError,
     NotHealthAuthorityError,
+    NotPrescriptionIssuerError,
     NotRegisteredError,
     PrescribedProductMismatchError,
+    PrescriptionNotActiveError,
+    PrescriptionStatus,
     ProductDetails,
     ProductKind,
     ProductMedicationMismatchError,
@@ -237,6 +243,56 @@ async def test_the_program_keeps_a_locked_brand(app, ledger, enabled, stock):
     await ledger.dispense(dispenser, issued.prescription_id, stock.reference, 1)
     prescription = await ledger.prescription(issued.prescription_id)
     assert prescription.prescribed_product == ledger.product_address(stock.reference)
+
+
+async def test_cancel_and_stop_end_to_end(app, ledger, enabled, stock):
+    prescriber, dispenser = enabled
+    untouched = await app.issue(prescriber, "123", document(stock), timedelta(days=30))
+    partial = await app.issue(prescriber, "123", document(stock), timedelta(days=30))
+    await app.dispense(dispenser, partial.prescription_id, stock.generic, 10)
+
+    await app.cancel(prescriber, untouched.prescription_id, ClosureReason.ISSUED_IN_ERROR, "typo")
+    await app.stop(prescriber, partial.prescription_id, ClosureReason.SUSPECTED_MISUSE)
+
+    cancelled = await app.audit(untouched.prescription_id)
+    stopped = await app.audit(partial.prescription_id)
+    assert cancelled.consistent and stopped.consistent, cancelled.problems + stopped.problems
+    assert cancelled.prescription.status is PrescriptionStatus.CANCELLED
+    assert (cancelled.closure.kind, cancelled.closure.quantity_voided) == (
+        ClosureKind.CANCELLED,
+        30,
+    )
+    assert stopped.closure.reason is ClosureReason.SUSPECTED_MISUSE
+    assert (stopped.closure.quantity_dispensed, stopped.closure.quantity_voided) == (10, 20)
+    with pytest.raises(PrescriptionNotActiveError):
+        await ledger.dispense(dispenser, partial.prescription_id, stock.generic, 1)
+
+
+async def test_the_program_itself_refuses_to_cancel_a_dispensed_prescription(
+    app, ledger, enabled, stock
+):
+    """Straight to the ledger, past the Python mirror: the chain says no."""
+    prescriber, dispenser = enabled
+    issued = await app.issue(prescriber, "123", document(stock), timedelta(days=30))
+    await app.dispense(dispenser, issued.prescription_id, stock.reference, 1)
+
+    with pytest.raises(AlreadyDispensedError):
+        await ledger.close_prescription(
+            prescriber, issued.prescription_id, ClosureKind.CANCELLED, ClosureReason.OTHER
+        )
+    assert (await ledger.prescription(issued.prescription_id)).status is PrescriptionStatus.ACTIVE
+
+
+async def test_another_prescriber_cannot_close_a_prescription(app, ledger, enabled, fresh, stock):
+    prescriber, _ = enabled
+    other = fresh("dr")
+    await ledger.register_prescriber("professional-authority", other)
+    issued = await app.issue(prescriber, "123", document(stock), timedelta(days=30))
+
+    with pytest.raises(NotPrescriptionIssuerError):
+        await ledger.close_prescription(
+            other, issued.prescription_id, ClosureKind.CANCELLED, ClosureReason.OTHER
+        )
 
 
 @pytest.mark.stress

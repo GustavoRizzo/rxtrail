@@ -30,6 +30,7 @@
         Solana {{ settings_network }}
       </span>
       <div class="ml-auto flex items-center gap-3 text-sm">
+        <a href="{% url 'web:insights' %}" class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-slate-400 transition hover:bg-white/5 hover:text-slate-100"><i data-lucide="radar" class="h-4 w-4"></i><span class="hidden sm:inline"> Insights</span></a>
         <a href="{% url 'web:catalog' %}" class="hidden items-center gap-1.5 rounded-full px-3 py-1.5 text-slate-400 transition hover:bg-white/5 hover:text-slate-100 md:flex"><i data-lucide="library-big" class="h-4 w-4"></i> Catalog</a>
         {% if user.is_authenticated and user.participant %}
           <a href="{% url 'web:home' %}" class="hidden items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 sm:flex">

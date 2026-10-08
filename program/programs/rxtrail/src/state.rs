@@ -100,6 +100,10 @@ pub struct Product {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
 pub enum PrescriptionStatus {
     Active,
+    /// Withdrawn by its prescriber before any dispensation.
+    Cancelled,
+    /// Ended by its prescriber after a partial dispensation: the rest is void.
+    Stopped,
 }
 
 /// A prescription for a controlled medication.
@@ -153,5 +157,40 @@ pub struct Dispensation {
     /// Remaining quantity right after this dispensation.
     pub remaining_after: u32,
     pub dispensed_at: i64,
+    pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
+pub enum ClosureKind {
+    Cancelled,
+    Stopped,
+}
+
+/// Why a prescription was closed. Non-clinical categories on purpose: this is
+/// public, and a clinical reason would be health data. Details stay off-chain.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace, Debug)]
+pub enum ClosureReason {
+    IssuedInError,
+    Replaced,
+    ClinicalDecision,
+    SuspectedMisuse,
+    Other,
+}
+
+/// The prescriber's act of cancelling or stopping a prescription. One per
+/// prescription (closing is final); created once, never modified.
+#[account]
+#[derive(InitSpace)]
+pub struct PrescriptionClosure {
+    pub prescription: Pubkey,
+    /// Key of the prescriber who signed it.
+    pub prescriber: Pubkey,
+    pub kind: ClosureKind,
+    pub reason: ClosureReason,
+    /// Dispensed before the closure (0 when cancelled).
+    pub quantity_dispensed: u32,
+    /// What the closure voided: the remaining balance.
+    pub quantity_voided: u32,
+    pub closed_at: i64,
     pub bump: u8,
 }

@@ -11,11 +11,12 @@ use {
     rxtrail::{
         error::RxTrailError,
         state::{
-            CatalogStatus, Dispensation, Dispenser, Medication, ParticipantStatus, Prescriber,
-            Prescription, Product,
+            CatalogStatus, ClosureKind, ClosureReason, Dispensation, Dispenser, Medication,
+            ParticipantStatus, Prescriber, Prescription, PrescriptionClosure, PrescriptionStatus,
+            Product,
         },
-        CONFIG_SEED, DISPENSATION_SEED, DISPENSER_SEED, MEDICATION_SEED, PRESCRIBER_SEED,
-        PRESCRIPTION_SEED, PRODUCT_SEED,
+        CLOSURE_SEED, CONFIG_SEED, DISPENSATION_SEED, DISPENSER_SEED, MEDICATION_SEED,
+        PRESCRIBER_SEED, PRESCRIPTION_SEED, PRODUCT_SEED,
     },
     solana_keypair::Keypair,
     solana_message::{Message, VersionedMessage},
@@ -75,6 +76,10 @@ fn dispensation_pda(prescription: &Pubkey, index: u32) -> Pubkey {
         prescription.as_ref(),
         &index.to_le_bytes(),
     ])
+}
+
+fn closure_pda(prescription: &Pubkey) -> Pubkey {
+    pda(&[CLOSURE_SEED, prescription.as_ref()])
 }
 
 /// Anchor encodes custom errors as `Custom(6000 + variant index)`.
@@ -497,6 +502,58 @@ impl Env {
             .to_account_metas(None),
         );
         self.send(ix, &[&authority])
+    }
+
+    // -- closing (cancel / stop) ---------------------------------------------------
+
+    fn close_by(
+        &mut self,
+        prescriber: &Keypair,
+        id: &[u8; 32],
+        kind: ClosureKind,
+        reason: ClosureReason,
+    ) -> Result<(), String> {
+        let prescription = prescription_pda(id);
+        let accounts = rxtrail::accounts::ClosePrescription {
+            payer: self.operator.pubkey(),
+            prescriber_signer: prescriber.pubkey(),
+            prescriber: prescriber_pda(&prescriber.pubkey()),
+            prescription,
+            closure: closure_pda(&prescription),
+            system_program: system_program::ID,
+        }
+        .to_account_metas(None);
+        let data = match kind {
+            ClosureKind::Cancelled => rxtrail::instruction::CancelPrescription { reason }.data(),
+            ClosureKind::Stopped => rxtrail::instruction::StopPrescription { reason }.data(),
+        };
+        let ix = Instruction::new_with_bytes(rxtrail::id(), &data, accounts);
+        self.send(ix, &[prescriber])
+    }
+
+    fn cancel(&mut self, id: &[u8; 32]) -> Result<(), String> {
+        let prescriber = self.prescriber.insecure_clone();
+        self.close_by(
+            &prescriber,
+            id,
+            ClosureKind::Cancelled,
+            ClosureReason::IssuedInError,
+        )
+    }
+
+    fn stop(&mut self, id: &[u8; 32]) -> Result<(), String> {
+        let prescriber = self.prescriber.insecure_clone();
+        self.close_by(
+            &prescriber,
+            id,
+            ClosureKind::Stopped,
+            ClosureReason::SuspectedMisuse,
+        )
+    }
+
+    fn closure(&self, id: &[u8; 32]) -> Option<PrescriptionClosure> {
+        let account = self.svm.get_account(&closure_pda(&prescription_pda(id)))?;
+        Some(PrescriptionClosure::try_deserialize(&mut account.data.as_slice()).unwrap())
     }
 
     fn prescription(&self, id: &[u8; 32]) -> Prescription {
@@ -1091,6 +1148,162 @@ fn the_largest_grant_never_overflows() {
         "{err}"
     );
     assert_eq!(env.prescription(&id).quantity_dispensed, u32::MAX);
+}
+
+// ------------------------------------- cancel and stop (RN-04 to RN-04g) ----
+
+#[test]
+fn a_prescription_nobody_dispensed_can_be_cancelled() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+
+    env.cancel(&id).unwrap();
+
+    assert_eq!(env.prescription(&id).status, PrescriptionStatus::Cancelled);
+    let closure = env.closure(&id).unwrap();
+    assert_eq!(closure.prescription, prescription_pda(&id));
+    assert_eq!(closure.prescriber, env.prescriber.pubkey());
+    assert_eq!(
+        (closure.kind, closure.reason),
+        (ClosureKind::Cancelled, ClosureReason::IssuedInError)
+    );
+    assert_eq!(
+        (closure.quantity_dispensed, closure.quantity_voided),
+        (0, 30)
+    );
+    assert_eq!(closure.closed_at, env.now());
+}
+
+#[test]
+fn a_dispensed_prescription_cannot_be_cancelled_only_stopped() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.dispense(&id, 10).unwrap();
+
+    let err = env.cancel(&id).unwrap_err();
+    assert!(err.contains(&code(RxTrailError::AlreadyDispensed)), "{err}");
+    assert_eq!(env.prescription(&id).status, PrescriptionStatus::Active);
+    assert!(env.closure(&id).is_none());
+
+    env.stop(&id).unwrap();
+    assert_eq!(env.prescription(&id).status, PrescriptionStatus::Stopped);
+    let closure = env.closure(&id).unwrap();
+    assert_eq!(closure.kind, ClosureKind::Stopped);
+    assert_eq!(
+        (closure.quantity_dispensed, closure.quantity_voided),
+        (10, 20)
+    );
+    // The dispensation made before stays on record, untouched.
+    assert_eq!(env.dispensation(&id, 0).quantity, 10);
+    assert_eq!(env.prescription(&id).quantity_dispensed, 10);
+}
+
+#[test]
+fn stopping_needs_a_dispensation_and_something_left() {
+    let mut env = Env::new();
+    let untouched = env.issue(30);
+    let err = env.stop(&untouched).unwrap_err();
+    assert!(err.contains(&code(RxTrailError::NothingDispensed)), "{err}");
+
+    let complete = env.issue(30);
+    env.dispense(&complete, 30).unwrap();
+    let err = env.stop(&complete).unwrap_err();
+    assert!(err.contains(&code(RxTrailError::NothingRemaining)), "{err}");
+}
+
+#[test]
+fn a_closed_prescription_cannot_be_dispensed() {
+    let mut env = Env::new();
+    let cancelled = env.issue(30);
+    env.cancel(&cancelled).unwrap();
+    let stopped = env.issue(30);
+    env.dispense(&stopped, 10).unwrap();
+    env.stop(&stopped).unwrap();
+
+    for id in [cancelled, stopped] {
+        let err = env.dispense(&id, 1).unwrap_err();
+        assert!(
+            err.contains(&code(RxTrailError::PrescriptionNotActive)),
+            "{err}"
+        );
+    }
+}
+
+#[test]
+fn only_the_issuing_prescriber_closes_a_prescription() {
+    let mut env = Env::new();
+    let other = Keypair::new();
+    env.register_prescriber(&other.pubkey()).unwrap();
+    let id = env.issue(30);
+
+    let err = env
+        .close_by(&other, &id, ClosureKind::Cancelled, ClosureReason::Other)
+        .unwrap_err();
+    assert!(
+        err.contains(&code(RxTrailError::NotPrescriptionIssuer)),
+        "{err}"
+    );
+
+    // The operator pays every fee but is no prescriber: refused as well.
+    let operator = env.operator.insecure_clone();
+    assert!(env
+        .close_by(&operator, &id, ClosureKind::Cancelled, ClosureReason::Other)
+        .is_err());
+    assert_eq!(env.prescription(&id).status, PrescriptionStatus::Active);
+}
+
+#[test]
+fn a_suspended_prescriber_cannot_close_prescriptions() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.set_prescriber_status(ParticipantStatus::Suspended)
+        .unwrap();
+
+    let err = env.cancel(&id).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::PrescriberNotActive)),
+        "{err}"
+    );
+}
+
+#[test]
+fn an_expired_prescription_cannot_be_closed() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    let expires_at = env.prescription(&id).expires_at;
+    env.set_time(expires_at);
+
+    let err = env.cancel(&id).unwrap_err();
+
+    assert!(
+        err.contains(&code(RxTrailError::PrescriptionExpired)),
+        "{err}"
+    );
+}
+
+#[test]
+fn closing_is_final() {
+    let mut env = Env::new();
+    let id = env.issue(30);
+    env.dispense(&id, 10).unwrap();
+    env.stop(&id).unwrap();
+
+    // A second closure is refused (the status check and the closure account,
+    // which already exists, both stand in the way).
+    assert!(env.stop(&id).is_err());
+    assert!(env.cancel(&id).is_err());
+
+    // Reinstating the prescriber does not revive a closed prescription.
+    env.set_prescriber_status(ParticipantStatus::Suspended)
+        .unwrap();
+    env.set_prescriber_status(ParticipantStatus::Active)
+        .unwrap();
+    let err = env.dispense(&id, 1).unwrap_err();
+    assert!(
+        err.contains(&code(RxTrailError::PrescriptionNotActive)),
+        "{err}"
+    );
 }
 
 // ------------------------------------------------ property: RN-06 always --
