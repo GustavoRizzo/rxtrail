@@ -601,3 +601,4 @@ repeat, and the demo seed continues where it stopped.
 |---|---|
 | **Gustavo Rizzo S. M. de Albuquerque** | [GitHub](https://github.com/GustavoRizzo) · [LinkedIn](https://www.linkedin.com/in/gustavo-albuquerque/) |
 | **Filipi Edgar Barbosa** | [LinkedIn](https://www.linkedin.com/in/filipi-edgar-barbosa/) |
+| **Carolina Pinheiro Barbeito** | [LinkedIn](https://www.linkedin.com/in/carolinapbarbeito/) |
