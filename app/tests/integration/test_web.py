@@ -574,15 +574,31 @@ def test_the_patient_copy_opens_without_an_account(client, cast):
     assert "Calmazen 2 mg" in page and "Clonazepam Beta" in page  # any version accepted
     assert "Generics are usually cheaper" in page
     assert "verified on Solana" in page  # the document matches the on-chain hash
-    assert 'class="rx-qr"' in page and f"/rx/{rx}/" in page
+    assert 'class="rx-qr"' in page and f"/rx/{rx}/" in page  # the public record, linked
 
 
-def test_on_screen_the_qr_code_copies_its_link(client, cast):
+def test_the_patient_copys_qr_code_opens_the_pharmacy_counter(client, cast):
     _, rx = issue(client)
 
     page = client.get(patient_link(rx)).content.decode()
 
-    assert f"rxCopy('http://testserver/rx/{rx}/', this)" in page
+    # On screen a click copies the link the code holds.
+    assert f"rxCopy('http://testserver/dispenser/?rx={rx}', this)" in page
+
+
+def test_a_pharmacist_scanning_signed_out_signs_in_and_lands_at_the_counter(client, cast):
+    _, rx = issue(client)
+    client.logout()
+
+    response = client.get("/dispenser/", {"rx": rx})
+    assert response["Location"] == f"/login/?next=%2Fdispenser%2F%3Frx%3D{rx}"
+
+    page = client.post(
+        response["Location"],
+        {"username": "pharmacy", "password": "pw", "next": f"/dispenser/?rx={rx}"},
+        follow=True,
+    ).content.decode()
+    assert "Maria Silva" in page and "Sign and dispense" in page
 
 
 def test_the_signature_links_to_the_issuing_transaction(client, cast, ledger):

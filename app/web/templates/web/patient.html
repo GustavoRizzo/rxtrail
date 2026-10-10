@@ -27,7 +27,7 @@
       <p class="font-sans text-xs text-ink-muted">Patient copy</p>
     </div>
     {# On screen the code is also a button: a click copies the link it holds. #}
-    <button type="button" onclick="rxCopy('{{ verify_url }}', this)" title="Copy the link in this code" class="group w-24 shrink-0 cursor-pointer rounded-md text-center sm:w-28">
+    <button type="button" onclick="rxCopy('{{ counter_url }}', this)" title="Copy the link in this code" class="group w-24 shrink-0 cursor-pointer rounded-md text-center sm:w-28">
       <span class="relative block">
         <span class="rx-qr-frame block transition group-hover:opacity-40">{{ qr }}</span>
         <span class="rx-no-print absolute inset-0 hidden place-items-center group-hover:grid"><span class="grid h-9 w-9 place-items-center rounded-full bg-paper text-ink shadow"><i data-lucide="copy" class="h-4 w-4"></i></span></span>

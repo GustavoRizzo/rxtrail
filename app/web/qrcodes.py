@@ -1,9 +1,10 @@
 """The QR code on a prescription, and reading it back at the counter.
 
-The code holds only the public verification link (/rx/<id>/): no personal
-data. A phone camera opens that page; the pharmacy's scanner (a camera in the
-page, or a USB reader that types what it reads) hands over the same text, and
-the prescription id is taken out of it.
+A code holds only a link with the prescription id, no personal data: on the
+prescriber's page, the public record (/rx/<id>/); on the patient's copy, the
+pharmacy's counter (/dispenser/?rx=<id>), so a pharmacist's phone lands ready
+to dispense. The counter's scanner (a camera in the page, or a USB reader that
+types what it reads) hands over either link, and the id is taken out of it.
 """
 
 import re

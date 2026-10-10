@@ -8,6 +8,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import wraps
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -65,7 +66,9 @@ def role_required(*roles):
         @wraps(view)
         def wrapper(request, *args, **kwargs):
             if not request.user.is_authenticated:
-                return redirect(f"{settings.LOGIN_URL}?next={request.path}")
+                # The whole address: a scanned code's ?rx= must survive the sign-in.
+                next_page = urlencode({"next": request.get_full_path()})
+                return redirect(f"{settings.LOGIN_URL}?{next_page}")
             participant = getattr(request.user, "participant", None)
             if participant is None or participant.role not in roles:
                 return redirect("web:home")
@@ -173,6 +176,14 @@ def _verification_link(request, prescription_id: str) -> str:
 
 def _verification_qr(request, prescription_id: str):
     return qrcodes.svg(_verification_link(request, prescription_id))
+
+
+def _counter_link(request, prescription_id: str) -> str:
+    """What the QR code on the patient's copy holds: the pharmacy's counter,
+    with this prescription already looked up (sign-in first, if needed)."""
+    return request.build_absolute_uri(
+        f"{reverse('web:dispenser')}?{urlencode({'rx': prescription_id})}"
+    )
 
 
 def prescription(request, prescription_id: str):
@@ -336,7 +347,8 @@ def patient_copy(request, token: str):
             .values_list("signature", flat=True)
             .first(),
             "verify_url": _verification_link(request, prescription_id),
-            "qr": _verification_qr(request, prescription_id),
+            "counter_url": _counter_link(request, prescription_id),
+            "qr": qrcodes.svg(_counter_link(request, prescription_id)),
         },
     )
     # A secret link: keep it out of caches, search engines and Referer headers.
