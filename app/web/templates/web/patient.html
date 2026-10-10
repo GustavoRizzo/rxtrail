@@ -2,6 +2,12 @@
 {% load rxtrail %}
 {% block title %}Your prescription{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{# The patient's page wears the patient's colour and icon, whoever opens it #}
+{# (the header keeps the signed-in account's own). #}
+{% block page_role %} data-role="patient"{% endblock %}
+{% block watermark %}
+  <div class="rx-watermark rx-no-print" aria-hidden="true"><i data-lucide="{{ "patient"|icon }}"></i></div>
+{% endblock %}
 {% block content %}
 {# The patient's copy reads like the paper prescription people know: one sheet, #}
 {# letterhead, ℞, signature, the pharmacies' record and the small print. #}

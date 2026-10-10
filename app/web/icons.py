@@ -13,6 +13,7 @@ ICONS = {
     "pharmacy board": "building-2",
     "drug regulator": "library-big",
     "auditor": "search-check",
+    "patient": "user-round",  # holds the copy; has no account
     # What the record holds
     "prescription": "file-text",
     "fill": "hand-coins",

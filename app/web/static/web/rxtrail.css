@@ -21,7 +21,36 @@ body {
   animation: rx-drift 24s ease-in-out infinite alternate;
 }
 .rx-backdrop::before { background: var(--brand-primary); top: -14rem; left: -10rem; }
-.rx-backdrop::after { background: var(--brand-accent); bottom: -16rem; right: -12rem; animation-delay: -12s; }
+.rx-backdrop::after { background: var(--role-accent); bottom: -16rem; right: -12rem; animation-delay: -12s; }
+
+/* Whose screen is this: the signed-in role picks the accent... */
+[data-role="prescriber"] { --role-accent: var(--role-prescriber); }
+[data-role="dispenser"] { --role-accent: var(--role-dispenser); }
+[data-role="professional_authority"] { --role-accent: var(--role-professional-authority); }
+[data-role="health_authority"] { --role-accent: var(--role-health-authority); }
+[data-role="catalog_authority"] { --role-accent: var(--role-catalog-authority); }
+[data-role="auditor"] { --role-accent: var(--role-auditor); }
+[data-role="patient"] { --role-accent: var(--role-patient); }
+
+/* ...and its icon is part of the background: fixed like the glows, so it
+   stays put while the page scrolls, and big enough to tell at a glance (and
+   on a recorded demo) whose screen this is. Static, never printed. */
+.rx-watermark {
+  position: fixed;
+  z-index: -1;
+  right: -5rem;
+  bottom: -6rem;
+  color: var(--role-accent);
+  opacity: 0.14;
+  pointer-events: none;
+}
+.rx-watermark svg {
+  width: min(85vh, 46rem);
+  height: min(85vh, 46rem);
+  stroke-width: 1;
+  transform: rotate(-12deg);
+}
+.rx-role-bar { border-bottom: 2px solid var(--role-accent); }
 
 @keyframes rx-drift {
   to { transform: translate(6rem, 4rem) scale(1.15); }

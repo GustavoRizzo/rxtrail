@@ -40,6 +40,19 @@
   --text: #f1f5f9;             /* text inside form fields */
   --placeholder: rgb(148 163 184 / 0.38); /* hint text: clearly fainter than real values */
 
+  /* Roles: each signed-in area wears its role's colour (header badge,
+     background glow, the big watermark), so a demo that switches accounts
+     always shows whose screen it is. rxtrail.css picks one into --role-accent
+     from <body data-role>; signed out, the brand accent. */
+  --role-accent: var(--brand-accent);
+  --role-prescriber: #60a5fa;
+  --role-dispenser: #34d399;
+  --role-professional-authority: #fbbf24;
+  --role-health-authority: #f472b6;
+  --role-catalog-authority: #c084fc;
+  --role-auditor: #22d3ee;
+  --role-patient: #fb923c;     /* the patient's copy: no account, same idea */
+
   /* Paper: the patient's copy is a sheet, like a paper prescription; QR
      codes (scanners need dark on light) and printouts use it too */
   --paper: #fdfcf8;

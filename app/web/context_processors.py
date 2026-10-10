@@ -21,5 +21,6 @@ def rxtrail(request):
         "demo_mode": settings.RXTRAIL_DEMO_MODE,
         "debug_mode": settings.DEBUG,
         "authors": settings.RXTRAIL_AUTHORS,
+        "role": getattr(participant, "role", ""),
         "role_icon": ROLE_ICONS.get(getattr(participant, "role", ""), "user"),
     }

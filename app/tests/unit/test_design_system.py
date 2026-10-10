@@ -93,6 +93,28 @@ def test_the_primary_brand_colour_is_visible_as_icons_and_accents(bg):
     assert contrast("brand-primary", bg) >= UI
 
 
+# The patient has no account but has a page of their own, in their colour.
+ROLE_COLOURS = [f"role-{r.replace('_', '-')}" for r in [*ROLE_ICONS, "patient"]]
+
+
+@pytest.mark.parametrize("bg", SURFACES)
+@pytest.mark.parametrize("fg", ROLE_COLOURS)
+def test_every_role_colour_is_readable_on_every_surface(fg, bg):
+    assert contrast(fg, bg) >= TEXT, f"--{fg} on --{bg}: {contrast(fg, bg):.2f}:1"
+
+
+@pytest.mark.parametrize("bg", ROLE_COLOURS)
+def test_the_role_badge_text_is_readable(bg):
+    assert contrast("on-brand", bg) >= TEXT
+
+
+def test_every_role_wears_its_colour():
+    for role in [*ROLE_ICONS, "patient"]:
+        assert f'[data-role="{role}"] {{ --role-accent: var(--role-{role.replace("_", "-")}); }}' in (
+            COMPONENTS
+        ), f"rxtrail.css: no accent for role {role}"
+
+
 @pytest.mark.parametrize("bg", ["surface-card", "surface-raised"])
 def test_placeholders_are_visible_but_fainter_than_values(bg):
     # Deliberately below text contrast (users mistook bright hints for
