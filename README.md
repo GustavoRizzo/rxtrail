@@ -9,6 +9,11 @@
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-6.1-0C4B33?logo=django&logoColor=white)
 
+| 🎤 **Pitch** | 🎬 **Demo** |
+|:---:|:---:|
+| [![RxTrail pitch video](https://img.youtube.com/vi/Pl3bJia4TtI/maxresdefault.jpg)](https://www.youtube.com/watch?v=Pl3bJia4TtI) | [![RxTrail demo video](https://img.youtube.com/vi/TgxHctkbews/maxres2.jpg)](https://youtu.be/TgxHctkbews) |
+| [Watch the pitch on YouTube](https://www.youtube.com/watch?v=Pl3bJia4TtI) | [Watch the demo on YouTube](https://youtu.be/TgxHctkbews) |
+
 Controlled medications are sold against a prescription that caps the
 quantity. Keeping that cap is harder than it sounds: a prescription can be
 filled in parts, at different pharmacies, over weeks, and health departments
