@@ -110,9 +110,8 @@ def test_the_role_badge_text_is_readable(bg):
 
 def test_every_role_wears_its_colour():
     for role in [*ROLE_ICONS, "patient"]:
-        assert f'[data-role="{role}"] {{ --role-accent: var(--role-{role.replace("_", "-")}); }}' in (
-            COMPONENTS
-        ), f"rxtrail.css: no accent for role {role}"
+        rule = f'[data-role="{role}"] {{ --role-accent: var(--role-{role.replace("_", "-")}); }}'
+        assert rule in COMPONENTS, f"rxtrail.css: no accent for role {role}"
 
 
 @pytest.mark.parametrize("bg", ["surface-card", "surface-raised"])
